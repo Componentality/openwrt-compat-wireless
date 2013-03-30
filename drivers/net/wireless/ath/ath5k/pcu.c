@@ -5,6 +5,7 @@
  * Copyright (c) 2007-2008 Luis Rodriguez <mcgrof@winlab.rutgers.edu>
  * Copyright (c) 2007-2008 Pavel Roskin <proski@gnu.org>
  * Copyright (c) 2007-2008 Jiri Slaby <jirislaby@gmail.com>
+ * Copyright (c) 2012-2013 Ildar Abubakirov, Componentality Oy
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -219,7 +220,8 @@ ath5k_hw_get_default_sifs(struct ath5k_hw *ah)
 	case AR5K_BWMODE_DEFAULT:
 		sifs = AR5K_INIT_SIFS_DEFAULT_BG;
 	default:
-		if (channel->band == IEEE80211_BAND_5GHZ)
+		if (channel->band == IEEE80211_BAND_5GHZ ||
+				channel->band == IEEE80211_BAND_DSRC)
 			sifs = AR5K_INIT_SIFS_DEFAULT_A;
 		break;
 	}

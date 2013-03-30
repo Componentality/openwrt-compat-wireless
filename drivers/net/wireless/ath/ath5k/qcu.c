@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004-2008 Reyk Floeter <reyk@openbsd.org>
  * Copyright (c) 2006-2008 Nick Kossifidis <mickflemm@gmail.com>
+ * Copyright (c) 2012-2013 Ildar Abubakirov, Componentality Oy
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -603,10 +604,15 @@ int ath5k_hw_set_ifs_intervals(struct ath5k_hw *ah, unsigned int slot_time)
 	 *
 	 * Also we have different lowest rate for 802.11a
 	 */
-	if (channel->band == IEEE80211_BAND_5GHZ)
-		band = IEEE80211_BAND_5GHZ;
-	else
-		band = IEEE80211_BAND_2GHZ;
+	switch (channel->band) {
+		case IEEE80211_BAND_5GHZ:
+		case IEEE80211_BAND_DSRC:
+			band = IEEE80211_BAND_5GHZ;
+			break;
+		default:
+			band = IEEE80211_BAND_2GHZ;
+			break;
+	}
 
 	rate = &ah->sbands[band].bitrates[0];
 	ack_tx_time = ath5k_hw_get_frame_duration(ah, band, 10, rate, false);

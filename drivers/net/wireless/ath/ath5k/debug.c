@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2007-2008 Bruno Randolf <bruno@thinktube.com>
+ * Copyright (c) 2012-2013 Ildar Abubakirov, Componentality Oy
  *
  *  This file is free software: you may copy, redistribute and/or modify it
  *  under the terms of the GNU General Public License as published by the
@@ -1027,6 +1028,9 @@ ath5k_debug_dump_bands(struct ath5k_hw *ah)
 		switch (band->band) {
 		case IEEE80211_BAND_2GHZ:
 			strcpy(bname, "2 GHz");
+			break;
+		case IEEE80211_BAND_DSRC:
+			strcpy(bname, "5.9 GHz DSRC");
 			break;
 		case IEEE80211_BAND_5GHZ:
 			strcpy(bname, "5 GHz");

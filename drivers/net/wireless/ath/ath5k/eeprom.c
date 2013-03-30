@@ -2,6 +2,7 @@
  * Copyright (c) 2004-2008 Reyk Floeter <reyk@openbsd.org>
  * Copyright (c) 2006-2009 Nick Kossifidis <mickflemm@gmail.com>
  * Copyright (c) 2008-2009 Felix Fietkau <nbd@openwrt.org>
+ * Copyright (c) 2012-2013 Ildar Abubakirov, Componentality Oy
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -1785,6 +1786,7 @@ ath5k_eeprom_mode_from_channel(struct ieee80211_channel *channel)
 {
 	switch (channel->hw_value) {
 	case AR5K_MODE_11A:
+	case AR5K_MODE_11P:
 		return AR5K_EEPROM_MODE_11A;
 	case AR5K_MODE_11G:
 		return AR5K_EEPROM_MODE_11G;

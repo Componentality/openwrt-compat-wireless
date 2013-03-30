@@ -1,6 +1,7 @@
 /*
  * Copyright (c) 2004-2007 Reyk Floeter <reyk@openbsd.org>
  * Copyright (c) 2006-2007 Nick Kossifidis <mickflemm@gmail.com>
+ * Copyright (c) 2012-2013 Ildar Abubakirov, Componentality Oy
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -439,6 +440,7 @@ enum ath5k_radio {
  * @AR5K_MODE_11A: 802.11a
  * @AR5K_MODE_11B: 802.11b
  * @AR5K_MODE_11G: 801.11g
+ * @AR5K_MODE_11P: 801.11p extends .11a
  * @AR5K_MODE_MAX: Used for boundary checks
  *
  * Do not change the order here, we use these as
@@ -448,7 +450,8 @@ enum ath5k_driver_mode {
 	AR5K_MODE_11A		=	0,
 	AR5K_MODE_11B		=	1,
 	AR5K_MODE_11G		=	2,
-	AR5K_MODE_MAX		=	3
+	AR5K_MODE_11P		=	3,
+	AR5K_MODE_MAX		=	4
 };
 
 /**

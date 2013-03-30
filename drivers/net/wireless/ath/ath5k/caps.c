@@ -2,6 +2,7 @@
  * Copyright (c) 2004-2008 Reyk Floeter <reyk@openbsd.org>
  * Copyright (c) 2006-2008 Nick Kossifidis <mickflemm@gmail.com>
  * Copyright (c) 2007-2008 Jiri Slaby <jirislaby@gmail.com>
+ * Copyright (c) 2012-2013 Ildar Abubakirov, Componentality Oy
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -74,6 +75,9 @@ int ath5k_hw_set_capabilities(struct ath5k_hw *ah)
 
 			/* Set supported modes */
 			__set_bit(AR5K_MODE_11A, caps->cap_mode);
+
+			/* for caps->cap_range.range_5ghz_max > 5840 MHz */
+			__set_bit(AR5K_MODE_11P, caps->cap_mode);
 		}
 
 		/* Enable  802.11b if a 2GHz capable radio (2111/5112) is

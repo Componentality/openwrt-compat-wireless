@@ -3,6 +3,7 @@
  * Copyright (c) 2006-2009 Nick Kossifidis <mickflemm@gmail.com>
  * Copyright (c) 2007-2008 Jiri Slaby <jirislaby@gmail.com>
  * Copyright (c) 2008-2009 Felix Fietkau <nbd@openwrt.org>
+ * Copyright (c) 2012-2013 Ildar Abubakirov, Componentality Oy
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -97,6 +98,7 @@ ath5k_hw_radio_revision(struct ath5k_hw *ah, enum ieee80211_band band)
 		ath5k_hw_reg_write(ah, AR5K_PHY_SHIFT_2GHZ, AR5K_PHY(0));
 		break;
 	case IEEE80211_BAND_5GHZ:
+	case IEEE80211_BAND_DSRC:
 		ath5k_hw_reg_write(ah, AR5K_PHY_SHIFT_5GHZ, AR5K_PHY(0));
 		break;
 	default:
@@ -144,7 +146,8 @@ ath5k_channel_ok(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 		if ((freq >= ah->ah_capabilities.cap_range.range_2ghz_min) &&
 		    (freq <= ah->ah_capabilities.cap_range.range_2ghz_max))
 			return true;
-	} else if (channel->band == IEEE80211_BAND_5GHZ)
+	} else if (channel->band == IEEE80211_BAND_5GHZ ||
+			channel->band == IEEE80211_BAND_DSRC)
 		if ((freq >= ah->ah_capabilities.cap_range.range_5ghz_min) &&
 		    (freq <= ah->ah_capabilities.cap_range.range_5ghz_max))
 			return true;
@@ -947,6 +950,7 @@ ath5k_hw_rfregs_init(struct ath5k_hw *ah,
 
 	/* RF5111 always needs OB/DB for 5GHz, even if we use 2GHz */
 	} else if ((channel->band == IEEE80211_BAND_5GHZ) ||
+			(channel->band == IEEE80211_BAND_DSRC) ||
 			(ah->ah_radio == AR5K_RF5111)) {
 
 		/* For 11a, Turbo and XR we need to choose
@@ -1985,7 +1989,8 @@ ath5k_hw_set_spur_mitigation_filter(struct ath5k_hw *ah,
 			symbol_width = AR5K_SPUR_SYMBOL_WIDTH_BASE_100Hz / 4;
 			break;
 		default:
-			if (channel->band == IEEE80211_BAND_5GHZ) {
+			if (channel->band == IEEE80211_BAND_5GHZ ||
+				channel->band == IEEE80211_BAND_DSRC) {
 				/* Both sample_freq and chip_freq are 40MHz */
 				spur_delta_phase = (spur_offset << 17) / 25;
 				spur_freq_sigma_delta =
@@ -2692,6 +2697,7 @@ ath5k_get_rate_pcal_data(struct ath5k_hw *ah,
 
 	switch (channel->hw_value) {
 	case AR5K_MODE_11A:
+	case AR5K_MODE_11P:
 		rpinfo = ee->ee_rate_tpwr_a;
 		mode = AR5K_EEPROM_MODE_11A;
 		break;
@@ -2790,6 +2796,7 @@ ath5k_get_max_ctl_power(struct ath5k_hw *ah,
 
 	switch (channel->hw_value) {
 	case AR5K_MODE_11A:
+	case AR5K_MODE_11P:
 		if (ah->ah_bwmode == AR5K_BWMODE_40MHZ)
 			ctl_mode |= AR5K_CTL_TURBO;
 		else

@@ -4,6 +4,7 @@
  * Copyright (c) 2007-2008 Luis Rodriguez <mcgrof@winlab.rutgers.edu>
  * Copyright (c) 2007-2008 Pavel Roskin <proski@gnu.org>
  * Copyright (c) 2007-2008 Jiri Slaby <jirislaby@gmail.com>
+ * Copyright (c) 2012-2013 Ildar Abubakirov, Componentality Oy
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -142,6 +143,7 @@ ath5k_hw_init_core_clock(struct ath5k_hw *ah)
 	 */
 	switch (channel->hw_value) {
 	case AR5K_MODE_11A:
+	case AR5K_MODE_11P:
 		clock = 40;
 		break;
 	case AR5K_MODE_11B:
@@ -773,7 +775,8 @@ ath5k_hw_nic_wakeup(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 				else
 					mode |= AR5K_PHY_MODE_MOD_DYN;
 			}
-		} else if (channel->band == IEEE80211_BAND_5GHZ) {
+		} else if (channel->band == IEEE80211_BAND_5GHZ ||
+				channel->band == IEEE80211_BAND_DSRC) {
 			mode |= (AR5K_PHY_MODE_FREQ_5GHZ |
 				 AR5K_PHY_MODE_MOD_OFDM);
 
@@ -908,7 +911,8 @@ ath5k_hw_tweak_initval_settings(struct ath5k_hw *ah,
 		u32 data;
 		ath5k_hw_reg_write(ah, AR5K_PHY_CCKTXCTL_WORLD,
 				AR5K_PHY_CCKTXCTL);
-		if (channel->band == IEEE80211_BAND_5GHZ)
+		if (channel->band == IEEE80211_BAND_5GHZ ||
+			channel->band == IEEE80211_BAND_DSRC)
 			data = 0xffb81020;
 		else
 			data = 0xffb80d20;
@@ -1200,6 +1204,7 @@ ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	mode = channel->hw_value;
 	switch (mode) {
 	case AR5K_MODE_11A:
+	case AR5K_MODE_11P:
 		break;
 	case AR5K_MODE_11G:
 		if (ah->ah_version <= AR5K_AR5211) {

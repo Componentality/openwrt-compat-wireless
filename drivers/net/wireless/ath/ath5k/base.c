@@ -4,6 +4,7 @@
  * Copyright (c) 2006 Devicescape Software, Inc.
  * Copyright (c) 2007 Jiri Slaby <jirislaby@gmail.com>
  * Copyright (c) 2007 Luis R. Rodriguez <mcgrof@winlab.rutgers.edu>
+ * Copyright (c) 2012-2013 Ildar Abubakirov, Componentality Oy
  *
  * All rights reserved.
  *
@@ -267,19 +268,32 @@ static bool ath5k_is_standard_channel(short chan, enum ieee80211_band band)
 #else
 static bool ath5k_is_standard_channel(short chan, enum ieee80211_band band)
 {
-	if (band == IEEE80211_BAND_2GHZ && chan <= 14)
-		return true;
+	/* 802.11p operations */
+	switch (band) {
+		case IEEE80211_BAND_2GHZ:
+			if (band == IEEE80211_BAND_2GHZ && chan <= 14)
+				return true;
+		case IEEE80211_BAND_5GHZ:
+			return	/* UNII 1,2 */
+				(((chan & 3) == 0 && chan >= 36 && chan <= 64) ||
+				 /* midband */
+				 ((chan & 3) == 0 && chan >= 100 && chan <= 140) ||
+				 /* UNII-3 */
+				 ((chan & 3) == 1 && chan >= 149 && chan <= 165) ||
+				 /* 802.11j 5.030-5.080 GHz (20MHz) */
+				 (chan == 8 || chan == 12 || chan == 16) ||
+				 /* 802.11j 4.9GHz (20MHz) */
+				 (chan == 184 || chan == 188 || chan == 192 || chan == 196));
+			break;
+		case IEEE80211_BAND_DSRC:
+			if((!(chan & 1)) && chan >=172 && chan <= 184)
+				return true;
+			break;
+		default:
+			break;
+	}
 
-	return	/* UNII 1,2 */
-		(((chan & 3) == 0 && chan >= 36 && chan <= 64) ||
-		/* midband */
-		((chan & 3) == 0 && chan >= 100 && chan <= 140) ||
-		/* UNII-3 */
-		((chan & 3) == 1 && chan >= 149 && chan <= 165) ||
-		/* 802.11j 5.030-5.080 GHz (20MHz) */
-		(chan == 8 || chan == 12 || chan == 16) ||
-		/* 802.11j 4.9GHz (20MHz) */
-		(chan == 184 || chan == 188 || chan == 192 || chan == 196));
+	return false;
 }
 #endif
 
@@ -289,17 +303,23 @@ ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
 {
 	unsigned int count, size, freq, ch;
 	enum ieee80211_band band;
+	unsigned int _mode = mode;
 
 	switch (mode) {
 	case AR5K_MODE_11A:
 		/* 1..220, but 2GHz frequencies are filtered by check_channel */
-		size = 220;
+		size = 200;
 		band = IEEE80211_BAND_5GHZ;
 		break;
 	case AR5K_MODE_11B:
 	case AR5K_MODE_11G:
-		size = 26;
+		size = 70;
 		band = IEEE80211_BAND_2GHZ;
+		break;
+	case AR5K_MODE_11P:
+		size = 200;
+		band = IEEE80211_BAND_DSRC;
+		_mode = AR5K_MODE_11A;
 		break;
 	default:
 		ATH5K_WARN(ah, "bad mode, not copying channels\n");
@@ -316,7 +336,7 @@ ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
 		/* Write channel info, needed for ath5k_channel_ok() */
 		channels[count].center_freq = freq;
 		channels[count].band = band;
-		channels[count].hw_value = mode;
+		channels[count].hw_value = _mode;
 
 		/* Check if channel is supported by the chipset */
 		if (!ath5k_channel_ok(ah, &channels[count]))
@@ -421,6 +441,27 @@ ath5k_setup_bands(struct ieee80211_hw *hw)
 					AR5K_MODE_11A, max_c);
 
 		hw->wiphy->bands[IEEE80211_BAND_5GHZ] = sband;
+
+		count_c = sband->n_channels;
+		max_c -= count_c;
+	}
+	ath5k_setup_rate_idx(ah, sband);
+
+	/* 5.9GHz band, P mode */
+	if (test_bit(AR5K_MODE_11P, ah->ah_capabilities.cap_mode)) {
+		sband = &ah->sbands[IEEE80211_BAND_DSRC];
+		sband->band = IEEE80211_BAND_DSRC;
+		sband->bitrates = &ah->rates[IEEE80211_BAND_DSRC][0];
+
+		memcpy(sband->bitrates, &ath5k_rates[4],
+		       sizeof(struct ieee80211_rate) * 8);
+		sband->n_bitrates = 8;
+
+		sband->channels = &ah->channels[count_c];
+		sband->n_channels = ath5k_setup_channels(ah, sband->channels,
+					AR5K_MODE_11P, max_c);
+
+		hw->wiphy->bands[IEEE80211_BAND_DSRC] = sband;
 	}
 	ath5k_setup_rate_idx(ah, sband);
 
@@ -2880,6 +2921,7 @@ ath5k_init(struct ieee80211_hw *hw)
 	 * on settings like the phy mode and regulatory
 	 * domain restrictions.
 	 */
+
 	ret = ath5k_setup_bands(hw);
 	if (ret) {
 		ATH5K_ERR(ah, "can't get channels\n");
