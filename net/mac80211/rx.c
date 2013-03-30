@@ -169,7 +169,7 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 	/* IEEE80211_RADIOTAP_CHANNEL */
 	put_unaligned_le16(status->freq, pos);
 	pos += 2;
-	if (status->band == IEEE80211_BAND_5GHZ)
+	if (status->band == IEEE80211_BAND_5GHZ || status->band == IEEE80211_BAND_DSRC)
 		put_unaligned_le16(IEEE80211_CHAN_OFDM | IEEE80211_CHAN_5GHZ,
 				   pos);
 	else if (status->flag & RX_FLAG_HT)
@@ -2323,7 +2323,8 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
 		goto queue;
 	case WLAN_CATEGORY_SPECTRUM_MGMT:
-		if (status->band != IEEE80211_BAND_5GHZ)
+		if (status->band != IEEE80211_BAND_5GHZ ||
+			status->band != IEEE80211_BAND_DSRC)
 			break;
 
 		if (sdata->vif.type != NL80211_IFTYPE_STATION)

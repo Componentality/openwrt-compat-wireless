@@ -843,6 +843,7 @@ static void ieee80211_handle_pwr_constr(struct ieee80211_sub_if_data *sdata,
 		chan_increment = 1;
 		break;
 	case IEEE80211_BAND_5GHZ:
+	case IEEE80211_BAND_DSRC:
 		chan_increment = 4;
 		break;
 	}
@@ -1319,7 +1320,8 @@ static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
 	}
 
 	use_short_slot = !!(capab & WLAN_CAPABILITY_SHORT_SLOT_TIME);
-	if (sdata->local->oper_channel->band == IEEE80211_BAND_5GHZ)
+	if (sdata->local->oper_channel->band == IEEE80211_BAND_5GHZ ||
+		sdata->local->oper_channel->band == IEEE80211_BAND_DSRC)
 		use_short_slot = true;
 
 	if (use_protection != bss_conf->use_cts_prot) {

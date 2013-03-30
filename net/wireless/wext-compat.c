@@ -26,7 +26,7 @@ int cfg80211_wext_giwname(struct net_device *dev,
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct ieee80211_supported_band *sband;
-	bool is_ht = false, is_a = false, is_b = false, is_g = false;
+	bool is_ht = false, is_a = false, is_b = false, is_g = false, is_p = false;
 
 	if (!wdev)
 		return -EOPNOTSUPP;
@@ -36,6 +36,10 @@ int cfg80211_wext_giwname(struct net_device *dev,
 		is_a = true;
 		is_ht |= sband->ht_cap.ht_supported;
 	}
+
+	sband = wdev->wiphy->bands[IEEE80211_BAND_DSRC];
+	if (sband)
+		is_p = true;
 
 	sband = wdev->wiphy->bands[IEEE80211_BAND_2GHZ];
 	if (sband) {
@@ -53,6 +57,8 @@ int cfg80211_wext_giwname(struct net_device *dev,
 	strcpy(name, "IEEE 802.11");
 	if (is_a)
 		strcat(name, "a");
+	if (is_p)
+		strcat(name, "p");
 	if (is_b)
 		strcat(name, "b");
 	if (is_g)
@@ -274,6 +280,8 @@ int cfg80211_wext_freq(struct wiphy *wiphy, struct iw_freq *freq)
 			return 0;
 		if (freq->m > 14)
 			band = IEEE80211_BAND_5GHZ;
+		if (freq->m > 171) /* 172-184 */
+			band = IEEE80211_BAND_DSRC;
 		return ieee80211_channel_to_frequency(freq->m, band);
 	} else {
 		int i, div = 1000000;

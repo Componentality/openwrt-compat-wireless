@@ -99,7 +99,8 @@ int __cfg80211_join_ibss(struct cfg80211_registered_device *rdev,
 		struct ieee80211_supported_band *sband =
 			rdev->wiphy.bands[params->channel->band];
 		int j;
-		u32 flag = params->channel->band == IEEE80211_BAND_5GHZ ?
+		u32 flag = (params->channel->band == IEEE80211_BAND_5GHZ ||
+				params->channel->band == IEEE80211_BAND_DSRC) ?
 			IEEE80211_RATE_MANDATORY_A :
 			IEEE80211_RATE_MANDATORY_B;
 

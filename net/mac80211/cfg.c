@@ -1683,7 +1683,8 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 	}
 
 	if (!sdata->vif.bss_conf.use_short_slot &&
-	    sdata->local->oper_channel->band == IEEE80211_BAND_5GHZ) {
+	    (sdata->local->oper_channel->band == IEEE80211_BAND_5GHZ ||
+		 sdata->local->oper_channel->band == IEEE80211_BAND_DSRC)) {
 		sdata->vif.bss_conf.use_short_slot = true;
 		changed |= BSS_CHANGED_ERP_SLOT;
 	}

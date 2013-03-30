@@ -120,7 +120,7 @@ int ieee80211_frame_duration(enum ieee80211_band band, size_t len,
 	 * DIV_ROUND_UP() operations.
 	 */
 
-	if (band == IEEE80211_BAND_5GHZ || erp) {
+	if (band == IEEE80211_BAND_5GHZ || erp || band == IEEE80211_BAND_DSRC) {
 		/*
 		 * OFDM:
 		 *

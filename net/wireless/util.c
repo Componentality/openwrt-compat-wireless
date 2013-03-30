@@ -2,6 +2,7 @@
  * Wireless utility functions
  *
  * Copyright 2007-2009	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright (c) 2012-2013 Ildar Abubakirov, Componentality Oy
  */
 #include <linux/export.h>
 #include <linux/bitops.h>
@@ -49,6 +50,9 @@ int ieee80211_channel_to_frequency(int chan, enum ieee80211_band band)
 			return 4000 + chan * 5;
 		else
 			return 5000 + chan * 5;
+		break;
+	case IEEE80211_BAND_DSRC:
+		return 5000 + chan * 5;
 		break;
 	case IEEE80211_BAND_60GHZ:
 		if (chan < 5)
@@ -109,6 +113,7 @@ static void set_mandatory_flags_band(struct ieee80211_supported_band *sband,
 
 	switch (band) {
 	case IEEE80211_BAND_5GHZ:
+	case IEEE80211_BAND_DSRC:
 		want = 3;
 		for (i = 0; i < sband->n_bitrates; i++) {
 			if (sband->bitrates[i].bitrate == 60 ||
