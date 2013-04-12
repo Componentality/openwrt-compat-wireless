@@ -240,21 +240,19 @@ static bool ar9003_hw_get_isr(struct ath_hw *ah, enum ath9k_int *masked)
 
 		*masked = isr & ATH9K_INT_COMMON;
 
-		if (ah->config.rx_intr_mitigation)
+		if (ah->config.rx_intr_mitigation) {
 			if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM))
 				*masked |= ATH9K_INT_RXLP;
-
-		if (ah->config.tx_intr_mitigation)
-			if (isr & (AR_ISR_TXMINTR | AR_ISR_TXINTM))
-				*masked |= ATH9K_INT_TX;
-
-		if (isr & (AR_ISR_LP_RXOK | AR_ISR_RXERR))
+		} else if (isr & (AR_ISR_LP_RXOK | AR_ISR_RXERR))
 			*masked |= ATH9K_INT_RXLP;
 
 		if (isr & AR_ISR_HP_RXOK)
 			*masked |= ATH9K_INT_RXHP;
 
-		if (isr & (AR_ISR_TXOK | AR_ISR_TXERR | AR_ISR_TXEOL)) {
+		if (ah->config.tx_intr_mitigation) {
+			if (isr & (AR_ISR_TXMINTR | AR_ISR_TXINTM))
+				*masked |= ATH9K_INT_TX;
+		} else if (isr & (AR_ISR_TXOK | AR_ISR_TXERR | AR_ISR_TXEOL)) {
 			*masked |= ATH9K_INT_TX;
 
 			if (!(pCap->hw_caps & ATH9K_HW_CAP_RAC_SUPPORTED)) {
@@ -458,12 +456,12 @@ int ath9k_hw_process_rxdesc_edma(struct ath_hw *ah, struct ath_rx_status *rxs,
 
 	/* XXX: Keycache */
 	rxs->rs_rssi = MS(rxsp->status5, AR_RxRSSICombined);
-	rxs->rs_rssi_ctl0 = MS(rxsp->status1, AR_RxRSSIAnt00);
-	rxs->rs_rssi_ctl1 = MS(rxsp->status1, AR_RxRSSIAnt01);
-	rxs->rs_rssi_ctl2 = MS(rxsp->status1, AR_RxRSSIAnt02);
-	rxs->rs_rssi_ext0 = MS(rxsp->status5, AR_RxRSSIAnt10);
-	rxs->rs_rssi_ext1 = MS(rxsp->status5, AR_RxRSSIAnt11);
-	rxs->rs_rssi_ext2 = MS(rxsp->status5, AR_RxRSSIAnt12);
+	rxs->rs_rssi_ctl[0] = MS(rxsp->status1, AR_RxRSSIAnt00);
+	rxs->rs_rssi_ctl[1] = MS(rxsp->status1, AR_RxRSSIAnt01);
+	rxs->rs_rssi_ctl[2] = MS(rxsp->status1, AR_RxRSSIAnt02);
+	rxs->rs_rssi_ext[0] = MS(rxsp->status5, AR_RxRSSIAnt10);
+	rxs->rs_rssi_ext[1] = MS(rxsp->status5, AR_RxRSSIAnt11);
+	rxs->rs_rssi_ext[2] = MS(rxsp->status5, AR_RxRSSIAnt12);
 
 	if (rxsp->status11 & AR_RxKeyIdxValid)
 		rxs->rs_keyix = MS(rxsp->status11, AR_KeyIdx);

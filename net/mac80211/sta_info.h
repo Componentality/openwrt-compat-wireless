@@ -32,7 +32,6 @@
  * @WLAN_STA_SHORT_PREAMBLE: Station is capable of receiving short-preamble
  *	frames.
  * @WLAN_STA_WME: Station is a QoS-STA.
- * @WLAN_STA_WDS: Station is one of our WDS peers.
  * @WLAN_STA_CLEAR_PS_FILT: Clear PS filter in hardware (using the
  *	IEEE80211_TX_CTL_CLEAR_PS_FILT control flag) when the next
  *	frame to this station is transmitted.
@@ -64,7 +63,6 @@ enum ieee80211_sta_info_flags {
 	WLAN_STA_AUTHORIZED,
 	WLAN_STA_SHORT_PREAMBLE,
 	WLAN_STA_WME,
-	WLAN_STA_WDS,
 	WLAN_STA_CLEAR_PS_FILT,
 	WLAN_STA_MFP,
 	WLAN_STA_BLOCK_BA,
@@ -327,6 +325,11 @@ struct sta_info {
 	unsigned long rx_dropped;
 	int last_signal;
 	struct ewma avg_signal;
+
+	u8 chains;
+	s8 chain_signal_last[4];
+	struct ewma chain_signal_avg[4];
+
 	/* Plus 1 for non-QoS frames */
 	__le16 last_seq_ctrl[NUM_RX_DATA_QUEUES + 1];
 

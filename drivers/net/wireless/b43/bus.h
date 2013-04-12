@@ -60,6 +60,16 @@ static inline bool b43_bus_host_is_sdio(struct b43_bus_dev *dev)
 	return (dev->bus_type == B43_BUS_SSB &&
 		dev->sdev->bus->bustype == SSB_BUSTYPE_SDIO);
 }
+static inline bool b43_bus_host_is_pci(struct b43_bus_dev *dev)
+{
+	if (dev->bus_type == B43_BUS_SSB)
+		return (dev->sdev->bus->bustype == SSB_BUSTYPE_PCI);
+#ifdef CONFIG_B43_BCMA
+	if (dev->bus_type == B43_BUS_BCMA)
+		return (dev->bdev->bus->hosttype == BCMA_HOSTTYPE_PCI);
+#endif
+	return false;
+}
 
 struct b43_bus_dev *b43_bus_dev_bcma_init(struct bcma_device *core);
 struct b43_bus_dev *b43_bus_dev_ssb_init(struct ssb_device *sdev);

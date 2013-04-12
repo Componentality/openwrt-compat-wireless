@@ -352,6 +352,9 @@ static void reg_regdb_search(struct work_struct *work)
 	struct reg_regdb_search_request *request;
 	const struct ieee80211_regdomain *curdom, *regdom;
 	int i, r;
+	bool set_reg = false;
+
+	mutex_lock(&cfg80211_mutex);
 
 	mutex_lock(&reg_regdb_search_mutex);
 	while (!list_empty(&reg_regdb_search_list)) {
@@ -367,9 +370,7 @@ static void reg_regdb_search(struct work_struct *work)
 				r = reg_copy_regd(&regdom, curdom);
 				if (r)
 					break;
-				mutex_lock(&cfg80211_mutex);
-				set_regdom(regdom);
-				mutex_unlock(&cfg80211_mutex);
+				set_reg = true;
 				break;
 			}
 		}
@@ -377,6 +378,11 @@ static void reg_regdb_search(struct work_struct *work)
 		kfree(request);
 	}
 	mutex_unlock(&reg_regdb_search_mutex);
+
+	if (set_reg)
+		set_regdom(regdom);
+
+	mutex_unlock(&cfg80211_mutex);
 }
 
 static DECLARE_WORK(reg_regdb_work, reg_regdb_search);
@@ -895,15 +901,14 @@ static void handle_channel(struct wiphy *wiphy,
 			map_regdom_flags(reg_rule->flags) | bw_flags;
 		chan->max_antenna_gain = chan->orig_mag =
 			(int) MBI_TO_DBI(power_rule->max_antenna_gain);
-		chan->max_power = chan->orig_mpwr =
+		chan->max_reg_power = chan->max_power = chan->orig_mpwr =
 			(int) MBM_TO_DBM(power_rule->max_eirp);
 		return;
 	}
 
 	chan->beacon_found = false;
 	chan->flags = flags | bw_flags | map_regdom_flags(reg_rule->flags);
-	chan->max_antenna_gain = min(chan->orig_mag,
-		(int) MBI_TO_DBI(power_rule->max_antenna_gain));
+	chan->max_antenna_gain = (int) MBI_TO_DBI(power_rule->max_antenna_gain);
 	chan->max_reg_power = (int) MBM_TO_DBM(power_rule->max_eirp);
 	if (chan->orig_mpwr) {
 		/*
@@ -1318,7 +1323,8 @@ static void handle_channel_custom(struct wiphy *wiphy,
 
 	chan->flags |= map_regdom_flags(reg_rule->flags) | bw_flags;
 	chan->max_antenna_gain = (int) MBI_TO_DBI(power_rule->max_antenna_gain);
-	chan->max_power = (int) MBM_TO_DBM(power_rule->max_eirp);
+	chan->max_reg_power = chan->max_power =
+		(int) MBM_TO_DBM(power_rule->max_eirp);
 }
 
 static void handle_band_custom(struct wiphy *wiphy, enum ieee80211_band band,
@@ -1790,6 +1796,8 @@ void regulatory_hint_11d(struct wiphy *wiphy,
 	enum environment_cap env = ENVIRON_ANY;
 	struct regulatory_request *request;
 
+	return;
+
 	mutex_lock(&reg_mutex);
 
 	if (unlikely(!last_request))
@@ -2024,6 +2032,8 @@ static void restore_regulatory_settings(bool reset_user)
 
 void regulatory_hint_disconnect(void)
 {
+	return;
+
 	REG_DBG_PRINT("All devices are disconnected, going to "
 		      "restore regulatory settings\n");
 	restore_regulatory_settings(false);

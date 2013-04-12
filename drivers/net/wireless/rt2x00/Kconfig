@@ -60,6 +60,7 @@ config RT2800PCI
 	select RT2X00_LIB_PCI if PCI
 	select RT2X00_LIB_SOC if RALINK_RT288X || RALINK_RT305X
 	select RT2X00_LIB_FIRMWARE
+	select RT2X00_LIB_EEPROM
 	select RT2X00_LIB_CRYPTO
 	select CRC_CCITT
 	select EEPROM_93CX6
@@ -210,6 +211,9 @@ config RT2X00_LIB_FIRMWARE
 	select FW_LOADER
 
 config RT2X00_LIB_CRYPTO
+	boolean
+
+config RT2X00_LIB_EEPROM
 	boolean
 
 config RT2X00_LIB_LEDS

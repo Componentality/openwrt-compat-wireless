@@ -40,7 +40,7 @@ int ath9k_modparam_nohwcrypt;
 module_param_named(nohwcrypt, ath9k_modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 
-int led_blink;
+int led_blink = 1;
 module_param_named(blink, led_blink, int, 0444);
 MODULE_PARM_DESC(blink, "Enable LED blink on activity");
 
@@ -537,6 +537,10 @@ static int ath9k_init_softc(u16 devid, struct ath_softc *sc,
 		ah->is_clk_25mhz = pdata->is_clk_25mhz;
 		ah->get_mac_revision = pdata->get_mac_revision;
 		ah->external_reset = pdata->external_reset;
+		ah->disable_2ghz = pdata->disable_2ghz;
+		ah->disable_5ghz = pdata->disable_5ghz;
+		if (!pdata->endian_check)
+			ah->ah_flags |= AH_NO_EEP_SWAP;
 	}
 
 	common = ath9k_hw_common(ah);
@@ -667,6 +671,7 @@ static const struct ieee80211_iface_limit if_limits[] = {
 #ifdef CONFIG_MAC80211_MESH
 				 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
+				 BIT(NL80211_IFTYPE_ADHOC) |
 				 BIT(NL80211_IFTYPE_AP) |
 				 BIT(NL80211_IFTYPE_P2P_GO) },
 };
@@ -808,7 +813,7 @@ int ath9k_init_device(u16 devid, struct ath_softc *sc,
 
 #ifdef CONFIG_MAC80211_LEDS
 	/* must be initialized before ieee80211_register_hw */
-	sc->led_cdev.default_trigger = ieee80211_create_tpt_led_trigger(sc->hw,
+	sc->led_default_trigger = ieee80211_create_tpt_led_trigger(sc->hw,
 		IEEE80211_TPT_LEDTRIG_FL_RADIO, ath9k_tpt_blink,
 		ARRAY_SIZE(ath9k_tpt_blink));
 #endif
@@ -923,23 +928,23 @@ static int __init ath9k_init(void)
 		goto err_out;
 	}
 
-	error = ath_pci_init();
+	error = ath_ahb_init();
 	if (error < 0) {
-		pr_err("No PCI devices found, driver not installed\n");
 		error = -ENODEV;
 		goto err_rate_unregister;
 	}
 
-	error = ath_ahb_init();
+	error = ath_pci_init();
 	if (error < 0) {
+		pr_err("No PCI devices found, driver not installed\n");
 		error = -ENODEV;
-		goto err_pci_exit;
+		goto err_ahb_exit;
 	}
 
 	return 0;
 
- err_pci_exit:
-	ath_pci_exit();
+ err_ahb_exit:
+	ath_ahb_exit();
 
  err_rate_unregister:
 	ath_rate_control_unregister();

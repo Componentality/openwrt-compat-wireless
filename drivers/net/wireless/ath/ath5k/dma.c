@@ -863,10 +863,18 @@ ath5k_hw_dma_init(struct ath5k_hw *ah)
 	 * guess we can tweak it and see how it goes ;-)
 	 */
 	if (ah->ah_version != AR5K_AR5210) {
+#if !defined(CONFIG_ATHEROS_AR71XX) && !defined(CONFIG_ATH79)
 		AR5K_REG_WRITE_BITS(ah, AR5K_TXCFG,
 			AR5K_TXCFG_SDMAMR, AR5K_DMASIZE_128B);
 		AR5K_REG_WRITE_BITS(ah, AR5K_RXCFG,
 			AR5K_RXCFG_SDMAMW, AR5K_DMASIZE_128B);
+#else
+		/* WAR for AR71xx PCI bug */
+		AR5K_REG_WRITE_BITS(ah, AR5K_TXCFG,
+			AR5K_TXCFG_SDMAMR, AR5K_DMASIZE_128B);
+		AR5K_REG_WRITE_BITS(ah, AR5K_RXCFG,
+			AR5K_RXCFG_SDMAMW, AR5K_DMASIZE_4B);
+#endif
 	}
 
 	/* Pre-enable interrupts on 5211/5212*/

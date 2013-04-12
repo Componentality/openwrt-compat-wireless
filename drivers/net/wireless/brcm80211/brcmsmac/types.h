@@ -93,11 +93,11 @@
 #define BOARD_GPIO_13		0x2000
 
 /* **** Core type/rev defaults **** */
-#define D11CONF		0x0fffffb0	/* Supported  D11 revs: 4, 5, 7-27
+#define D11CONF		0x1fffffb0	/* Supported  D11 revs: 4, 5, 7-27
 					 * also need to update wlc.h MAXCOREREV
 					 */
 
-#define NCONF		0x000001ff	/* Supported nphy revs:
+#define NCONF		0x000002ff	/* Supported nphy revs:
 					 *      0       4321a0
 					 *      1       4321a1
 					 *      2       4321b0/b1/c0/c1

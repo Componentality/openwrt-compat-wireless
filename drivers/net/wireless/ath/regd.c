@@ -44,7 +44,8 @@ static int __ath_regd_init(struct ath_regulatory *reg);
 				NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_OFDM)
 
 /* We allow IBSS on these on a case by case basis by regulatory domain */
-#define ATH9K_5GHZ_5150_5350	REG_RULE(5150-10, 5350+10, 40, 0, 30,\
+#define ATH9K_5GHZ_5150_5350	REG_RULE(5150-10, 5250, 40, 0, 30, 0), \
+				REG_RULE(5250, 5350+10, 40, 0, 30,\
 				NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS)
 #define ATH9K_5GHZ_5470_5850	REG_RULE(5470-10, 5850+10, 40, 0, 30,\
 				NL80211_RRF_PASSIVE_SCAN | NL80211_RRF_NO_IBSS)
@@ -62,57 +63,56 @@ static int __ath_regd_init(struct ath_regulatory *reg);
 #define ATH9K_5GHZ_NO_MIDBAND	ATH9K_5GHZ_5150_5350, \
 				ATH9K_5GHZ_5725_5850
 
+#define REGD_RULES(...) \
+	.reg_rules = { __VA_ARGS__ }, \
+	.n_reg_rules = ARRAY_SIZE(((struct ieee80211_reg_rule[]) { __VA_ARGS__ }))
+
 /* Can be used for:
  * 0x60, 0x61, 0x62 */
 static const struct ieee80211_regdomain ath_world_regdom_60_61_62 = {
-	.n_reg_rules = 5,
 	.alpha2 =  "99",
-	.reg_rules = {
+	REGD_RULES(
 		ATH9K_2GHZ_ALL,
 		ATH9K_5GHZ_ALL,
-	}
+	)
 };
 
 /* Can be used by 0x63 and 0x65 */
 static const struct ieee80211_regdomain ath_world_regdom_63_65 = {
-	.n_reg_rules = 4,
 	.alpha2 =  "99",
-	.reg_rules = {
+	REGD_RULES(
 		ATH9K_2GHZ_CH01_11,
 		ATH9K_2GHZ_CH12_13,
 		ATH9K_5GHZ_NO_MIDBAND,
-	}
+	)
 };
 
 /* Can be used by 0x64 only */
 static const struct ieee80211_regdomain ath_world_regdom_64 = {
-	.n_reg_rules = 3,
 	.alpha2 =  "99",
-	.reg_rules = {
+	REGD_RULES(
 		ATH9K_2GHZ_CH01_11,
 		ATH9K_5GHZ_NO_MIDBAND,
-	}
+	)
 };
 
 /* Can be used by 0x66 and 0x69 */
 static const struct ieee80211_regdomain ath_world_regdom_66_69 = {
-	.n_reg_rules = 3,
 	.alpha2 =  "99",
-	.reg_rules = {
+	REGD_RULES(
 		ATH9K_2GHZ_CH01_11,
 		ATH9K_5GHZ_ALL,
-	}
+	)
 };
 
 /* Can be used by 0x67, 0x68, 0x6A and 0x6C */
 static const struct ieee80211_regdomain ath_world_regdom_67_68_6A_6C = {
-	.n_reg_rules = 4,
 	.alpha2 =  "99",
-	.reg_rules = {
+	REGD_RULES(
 		ATH9K_2GHZ_CH01_11,
 		ATH9K_2GHZ_CH12_13,
 		ATH9K_5GHZ_ALL,
-	}
+	)
 };
 
 static inline bool is_wwr_sku(u16 regd)
@@ -200,6 +200,10 @@ ath_reg_apply_beaconing_flags(struct wiphy *wiphy,
 	u32 bandwidth = 0;
 	int r;
 
+#ifdef ATH_USER_REGD
+	return;
+#endif
+
 	for (band = 0; band < IEEE80211_NUM_BANDS; band++) {
 
 		if (!wiphy->bands[band])
@@ -259,6 +263,10 @@ ath_reg_apply_active_scan_flags(struct wiphy *wiphy,
 	u32 bandwidth = 0;
 	int r;
 
+#ifdef ATH_USER_REGD
+	return;
+#endif
+
 	sband = wiphy->bands[IEEE80211_BAND_2GHZ];
 	if (!sband)
 		return;
@@ -307,6 +315,10 @@ static void ath_reg_apply_radar_flags(struct wiphy *wiphy)
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_channel *ch;
 	unsigned int i;
+
+#ifdef ATH_USER_REGD
+	return;
+#endif
 
 	if (!wiphy->bands[IEEE80211_BAND_5GHZ])
 		return;
@@ -513,6 +525,10 @@ ath_regd_init_wiphy(struct ath_regulatory *reg,
 					struct regulatory_request *request))
 {
 	const struct ieee80211_regdomain *regd;
+
+#ifdef ATH_USER_REGD
+	return 0;
+#endif
 
 	wiphy->reg_notifier = reg_notifier;
 	wiphy->flags |= WIPHY_FLAG_STRICT_REGULATORY;

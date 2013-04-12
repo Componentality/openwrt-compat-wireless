@@ -2,8 +2,8 @@ ifeq ($(wildcard $(KLIB_BUILD)/.config),)
 # These will be ignored by compat autoconf
  export CONFIG_PCI=y
  export CONFIG_USB=y
- export CONFIG_PCMCIA=y
- export CONFIG_SSB=m
+# export CONFIG_PCMCIA=y
+# export CONFIG_SSB=m
 else
 include $(KLIB_BUILD)/.config
 endif
@@ -54,7 +54,7 @@ endif
 ifeq ($(KERNEL_VERSION),2)
 ifeq ($(shell test $(KERNEL_VERSION) -eq 2 -a $(KERNEL_26SUBLEVEL) -ge 27 -a $(KERNEL_26SUBLEVEL) -le 31 && echo yes),yes)
 ifeq ($(CONFIG_MAC80211),)
-$(error "ERROR: Your >=2.6.27 and <= 2.6.31 kernel has CONFIG_MAC80211 disabled, you should have it CONFIG_MAC80211=m if you want to use this thing.")
+# $(error "ERROR: Your >=2.6.27 and <= 2.6.31 kernel has CONFIG_MAC80211 disabled, you should have it CONFIG_MAC80211=m if you want to use this thing.")
 endif
 endif
 endif
@@ -78,7 +78,7 @@ endif # build check
 endif # kernel Makefile check
 
 # These both are needed by 802.11 and bluetooth so enable
- export CONFIG_COMPAT_RFKILL=y
+# export CONFIG_COMPAT_RFKILL=y
 
 ifeq ($(CONFIG_MAC80211),y)
 $(error "ERROR: you have MAC80211 compiled into the kernel, CONFIG_MAC80211=y, as such you cannot replace its mac80211 driver. You need this set to CONFIG_MAC80211=m. If you are using Fedora upgrade your kernel as later version should this set as modular. For further information on Fedora see https://bugzilla.redhat.com/show_bug.cgi?id=470143. If you are using your own kernel recompile it and make mac80211 modular")
@@ -100,9 +100,9 @@ ifndef CONFIG_COMPAT_KERNEL_2_6_27
 ifeq ($(CONFIG_BT),y)
 # we'll ignore compiling bluetooth
 else
- export CONFIG_COMPAT_BLUETOOTH=y
- export CONFIG_COMPAT_BLUETOOTH_MODULES=m
- export CONFIG_HID_GENERIC=m
+# export CONFIG_COMPAT_BLUETOOTH=y
+# export CONFIG_COMPAT_BLUETOOTH_MODULES=m
+# export CONFIG_HID_GENERIC=m
 endif
 endif #CONFIG_COMPAT_KERNEL_2_6_27
 
@@ -169,7 +169,7 @@ export CONFIG_MAC80211_RC_DEFAULT_MINSTREL=y
 # This is the one used by our compat-drivers net/mac80211/rate.c
 # in case you have and old kernel which is overriding this to pid.
 export CONFIG_COMPAT_MAC80211_RC_DEFAULT=minstrel_ht
-export CONFIG_MAC80211_RC_PID=y
+# export CONFIG_MAC80211_RC_PID=y
 export CONFIG_MAC80211_RC_MINSTREL=y
 export CONFIG_MAC80211_RC_MINSTREL_HT=y
 ifdef CONFIG_LEDS_TRIGGERS
@@ -177,7 +177,7 @@ export CONFIG_MAC80211_LEDS=y
 endif #CONFIG_LEDS_TRIGGERS
 
 # enable mesh networking too
-export CONFIG_MAC80211_MESH=y
+# export CONFIG_MAC80211_MESH=y
 
 export CONFIG_CFG80211=m
 export CONFIG_CFG80211_DEFAULT_PS=y
@@ -241,7 +241,7 @@ $(warning "WARNING: CONFIG_CFG80211_WEXT will be deactivated or not working beca
 endif #CONFIG_WIRELESS_EXT
 
 ifdef CONFIG_STAGING
-export CONFIG_COMPAT_STAGING=m
+# export CONFIG_COMPAT_STAGING=m
 endif #CONFIG_STAGING
 
 # mac80211 test driver
@@ -265,9 +265,9 @@ export CONFIG_ATH9K_COMMON=m
 # as default once we get minstrel properly tested and blessed by
 # our systems engineering team. CCK rates also need to be used
 # for long range considerations.
-export CONFIG_COMPAT_ATH9K_RATE_CONTROL=y
+# export CONFIG_COMPAT_ATH9K_RATE_CONTROL=y
 
-export CONFIG_ATH9K_BTCOEX_SUPPORT=y
+# export CONFIG_ATH9K_BTCOEX_SUPPORT=y
 
 # WIL6210 requires MSI only available >= 2.6.30
 ifndef CONFIG_COMPAT_KERNEL_2_6_30
@@ -282,7 +282,7 @@ endif #CONFIG_COMPAT_KERNEL_2_6_27
 # PCI Drivers
 ifdef CONFIG_PCI
 
-export CONFIG_ATH5K_PCI=y
+# export CONFIG_ATH5K_PCI=y
 export CONFIG_ATH9K_PCI=y
 
 export CONFIG_IWLWIFI=m
@@ -304,14 +304,14 @@ export CONFIG_B43=m
 export CONFIG_B43_HWRNG=y
 export CONFIG_B43_PCI_AUTOSELECT=y
 ifdef CONFIG_PCMCIA
-export CONFIG_B43_PCMCIA=y
+# export CONFIG_B43_PCMCIA=y
 endif #CONFIG_PCMCIA
 ifdef CONFIG_MAC80211_LEDS
 export CONFIG_B43_LEDS=y
 endif #CONFIG_MAC80211_LEDS
 export CONFIG_B43_PHY_LP=y
-export CONFIG_B43_PHY_N=y
-export CONFIG_B43_PHY_HT=y
+# export CONFIG_B43_PHY_N=y
+# export CONFIG_B43_PHY_HT=y
 # export CONFIG_B43_PHY_LCN=y
 # export CONFIG_B43_DEBUG=y
 
@@ -353,7 +353,8 @@ export CONFIG_IPW2200_QOS=y
 # % echo 1 > /sys/bus/pci/drivers/ipw2200/*/rtap_iface
 endif #CONFIG_WIRELESS_EXT
 
-ifdef CONFIG_SSB
+# disabled
+ifdef __CONFIG_SSB
 # Sonics Silicon Backplane
 export CONFIG_SSB_SPROM=y
 
@@ -366,25 +367,25 @@ endif #CONFIG_PCMCIA
 # export CONFIG_SSB_DEBUG=y
 export CONFIG_SSB_DRIVER_PCICORE=y
 export CONFIG_B43_SSB=y
-endif #CONFIG_SSB
+endif #__CONFIG_SSB
 
-export CONFIG_BCMA=m
-export CONFIG_BCMA_BLOCKIO=y
-export CONFIG_BCMA_HOST_PCI=y
+# export CONFIG_BCMA=m
+# export CONFIG_BCMA_BLOCKIO=y
+# export CONFIG_BCMA_HOST_PCI=y
 # export CONFIG_BCMA_DEBUG=y
-export CONFIG_B43_BCMA=y
-export CONFIG_B43_BCMA_EXTRA=y
+# export CONFIG_B43_BCMA=y
+# export CONFIG_B43_BCMA_EXTRA=y
 
 export CONFIG_P54_PCI=m
 
-export CONFIG_B44=m
-export CONFIG_B44_PCI=y
+# export CONFIG_B44=m
+# export CONFIG_B44_PCI=y
 
 export CONFIG_RTL8180=m
 
 export CONFIG_ADM8211=m
 
-export CONFIG_RT2X00_LIB_PCI=m
+# export CONFIG_RT2X00_LIB_PCI=m
 export CONFIG_RT2400PCI=m
 export CONFIG_RT2500PCI=m
 ifdef CONFIG_CRC_CCITT
@@ -405,12 +406,12 @@ endif #CONFIG_CRC_ITU_T
 export CONFIG_MWL8K=m
 
 # Ethernet drivers go here
-export CONFIG_ATL1=m
-export CONFIG_ATL2=m
-export CONFIG_ATL1E=m
+# export CONFIG_ATL1=m
+# export CONFIG_ATL2=m
+# export CONFIG_ATL1E=m
 ifndef CONFIG_COMPAT_KERNEL_2_6_28
-export CONFIG_ATL1C=m
-export CONFIG_ALX=m
+# export CONFIG_ATL1C=m
+# export CONFIG_ALX=m
 endif #CONFIG_COMPAT_KERNEL_2_6_28
 
 ifdef CONFIG_WIRELESS_EXT
@@ -471,21 +472,21 @@ endif #CONFIG_COMPAT_KERNEL_2_6_29
 # Note: this depends on CONFIG_USB_NET_RNDIS_HOST and CONFIG_USB_NET_CDCETHER
 # it also requires new RNDIS_HOST and CDC_ETHER modules which we add
 ifdef CONFIG_COMPAT_KERNEL_2_6_29
-export CONFIG_USB_COMPAT_USBNET=n
-export CONFIG_USB_NET_COMPAT_RNDIS_HOST=n
-export CONFIG_USB_NET_COMPAT_RNDIS_WLAN=n
-export CONFIG_USB_NET_COMPAT_CDCETHER=n
+# export CONFIG_USB_COMPAT_USBNET=n
+# export CONFIG_USB_NET_COMPAT_RNDIS_HOST=n
+# export CONFIG_USB_NET_COMPAT_RNDIS_WLAN=n
+# export CONFIG_USB_NET_COMPAT_CDCETHER=n
 else #CONFIG_COMPAT_KERNEL_2_6_29
-export CONFIG_USB_COMPAT_USBNET=m
+# export CONFIG_USB_COMPAT_USBNET=m
 ifdef CONFIG_USB_NET_CDCETHER
-export CONFIG_USB_NET_COMPAT_RNDIS_HOST=m
-export CONFIG_USB_NET_COMPAT_RNDIS_WLAN=m
+# export CONFIG_USB_NET_COMPAT_RNDIS_HOST=m
+# export CONFIG_USB_NET_COMPAT_RNDIS_WLAN=m
 endif #CONFIG_USB_NET_CDCETHER
 ifdef CONFIG_USB_NET_CDCETHER_MODULE
-export CONFIG_USB_NET_COMPAT_RNDIS_HOST=m
-export CONFIG_USB_NET_COMPAT_RNDIS_WLAN=m
+# export CONFIG_USB_NET_COMPAT_RNDIS_HOST=m
+# export CONFIG_USB_NET_COMPAT_RNDIS_WLAN=m
 endif #CONFIG_USB_NET_CDCETHER
-export CONFIG_USB_NET_COMPAT_CDCETHER=m
+# export CONFIG_USB_NET_COMPAT_CDCETHER=m
 endif #CONFIG_COMPAT_KERNEL_2_6_29
 
 
@@ -509,7 +510,7 @@ endif #CONFIG_COMPAT_KERNEL_2_6_29
 # This activates a threading fix for usb urb.
 # this is mainline commit: b3e670443b7fb8a2d29831b62b44a039c283e351
 # This fix will be included in some stable releases.
-export CONFIG_COMPAT_USB_URB_THREAD_FIX=y
+# export CONFIG_COMPAT_USB_URB_THREAD_FIX=y
 
 export CONFIG_ATH9K_HTC=m
 # export CONFIG_ATH9K_HTC_DEBUGFS=y
@@ -527,7 +528,7 @@ export CONFIG_RT2800USB_RT35XX=y
 export CONFIG_RT2800USB_RT53XX=y
 export CONFIG_RT2800USB_UNKNOWN=y
 endif #CONFIG_CRC_CCITT
-export CONFIG_RT2X00_LIB_USB=m
+# export CONFIG_RT2X00_LIB_USB=m
 NEED_RT2X00=y
 # RT73USB requires firmware
 ifdef CONFIG_CRC_ITU_T
@@ -580,8 +581,8 @@ endif #CONFIG_SPI_MASTER end of SPI driver list
 
 ifdef CONFIG_MMC
 
-export CONFIG_SSB_SDIOHOST=y
-export CONFIG_B43_SDIO=y
+# export CONFIG_SSB_SDIOHOST=y
+# export CONFIG_B43_SDIO=y
 
 ifdef CONFIG_CRC7
 ifdef CONFIG_WL12XX_PLATFORM_DATA
@@ -623,6 +624,7 @@ export CONFIG_RT2X00=y
 export CONFIG_RT2X00_LIB=m
 export CONFIG_RT2800_LIB=m
 export CONFIG_RT2X00_LIB_FIRMWARE=y
+export CONFIG_RT2X00_LIB_EEPROM=y
 export CONFIG_RT2X00_LIB_CRYPTO=y
 # export CONFIG_RT2X00_LIB_SOC=y
 ifdef CONFIG_COMPAT_KERNEL_2_6_25
@@ -690,10 +692,10 @@ endif #CONFIG_COMPAT_KERNEL_2_6_27
 # We need the backported rfkill module on kernel < 2.6.31.
 # In more recent kernel versions use the in kernel rfkill module.
 ifdef CONFIG_COMPAT_KERNEL_2_6_31
-export CONFIG_RFKILL_BACKPORT=m
+#export CONFIG_RFKILL_BACKPORT=m
 ifdef CONFIG_LEDS_TRIGGERS
-export CONFIG_RFKILL_BACKPORT_LEDS=y
+#export CONFIG_RFKILL_BACKPORT_LEDS=y
 endif #CONFIG_LEDS_TRIGGERS
-export CONFIG_RFKILL_BACKPORT_INPUT=y
+#export CONFIG_RFKILL_BACKPORT_INPUT=y
 endif #CONFIG_COMPAT_KERNEL_2_6_31
 

@@ -208,6 +208,7 @@ void rt2x00pci_uninitialize(struct rt2x00_dev *rt2x00dev)
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_uninitialize);
 
+#ifdef CONFIG_PCI
 /*
  * PCI driver handlers.
  */
@@ -254,6 +255,7 @@ exit:
 int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops)
 {
 	struct ieee80211_hw *hw;
+	struct rt2x00_platform_data *pdata;
 	struct rt2x00_dev *rt2x00dev;
 	int retval;
 	u16 chip;
@@ -272,8 +274,10 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops)
 
 	pci_set_master(pci_dev);
 
+#ifdef CONFIG_PCI_SET_MWI
 	if (pci_set_mwi(pci_dev))
 		ERROR_PROBE("MWI not available.\n");
+#endif
 
 	if (dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32))) {
 		ERROR_PROBE("PCI DMA not supported.\n");
@@ -296,6 +300,12 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct rt2x00_ops *ops)
 	rt2x00dev->hw = hw;
 	rt2x00dev->irq = pci_dev->irq;
 	rt2x00dev->name = pci_name(pci_dev);
+
+	/* if we get passed the name of a eeprom_file_name, then use this in
+	   favour of the eeprom */
+	pdata = rt2x00dev->dev->platform_data;
+	if (pdata && pdata->eeprom_file_name)
+		set_bit(REQUIRE_EEPROM_FILE, &rt2x00dev->cap_flags);
 
 	if (pci_is_pcie(pci_dev))
 		rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCIE);
@@ -392,6 +402,7 @@ int rt2x00pci_resume(struct pci_dev *pci_dev)
 }
 EXPORT_SYMBOL_GPL(rt2x00pci_resume);
 #endif /* CONFIG_PM */
+#endif /* CONFIG_PCI */
 
 /*
  * rt2x00pci module information.

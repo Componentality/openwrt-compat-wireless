@@ -49,7 +49,7 @@ void netdev_attach_ops(struct net_device *dev,
 EXPORT_SYMBOL_GPL(netdev_attach_ops);
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,23))
-#if defined(CONFIG_USB) || defined(CONFIG_USB_MODULE)
+#if 0
 /**
  * usb_unpoison_anchored_urbs - let an anchor be used successfully again
  * @anchor: anchor the requests are bound to

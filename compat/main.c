@@ -47,6 +47,17 @@ void compat_dependency_symbol(void)
 EXPORT_SYMBOL_GPL(compat_dependency_symbol);
 
 
+#if defined(CONFIG_FW_LOADER) && (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,33))
+int __init firmware_class_init(void);
+void __exit firmware_class_exit(void);
+#else
+static inline int firmware_class_init(void)
+{
+	return 0;
+}
+static inline void firmware_class_exit(void) {}
+#endif
+
 static int __init compat_init(void)
 {
 	compat_pm_qos_power_init();
@@ -63,7 +74,8 @@ static int __init compat_init(void)
 	printk(KERN_INFO "compat.git: "
 	       COMPAT_BASE_TREE "\n");
 
-        return 0;
+	firmware_class_init();
+	return 0;
 }
 module_init(compat_init);
 
@@ -72,7 +84,8 @@ static void __exit compat_exit(void)
 	compat_pm_qos_power_deinit();
 	compat_system_workqueue_destroy();
 
-        return;
+	firmware_class_exit();
+	return;
 }
 module_exit(compat_exit);
 

@@ -65,7 +65,7 @@ ath5k_tx(struct ieee80211_hw *hw, struct ieee80211_tx_control *control,
 	u16 qnum = skb_get_queue_mapping(skb);
 
 	if (WARN_ON(qnum >= ah->ah_capabilities.cap_queues.q_tx_num)) {
-		dev_kfree_skb_any(skb);
+		ieee80211_free_txskb(hw, skb);
 		return;
 	}
 
@@ -89,13 +89,8 @@ ath5k_add_interface(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 		goto end;
 	}
 
-	/* Don't allow other interfaces if one ad-hoc is configured.
-	 * TODO: Fix the problems with ad-hoc and multiple other interfaces.
-	 * We would need to operate the HW in ad-hoc mode to allow TSF updates
-	 * for the IBSS, but this breaks with additional AP or STA interfaces
-	 * at the moment. */
-	if (ah->num_adhoc_vifs ||
-	    (ah->nvifs && vif->type == NL80211_IFTYPE_ADHOC)) {
+	/* Don't allow more than one ad-hoc interface */
+	if (ah->num_adhoc_vifs && vif->type == NL80211_IFTYPE_ADHOC) {
 		ATH5K_ERR(ah, "Only one single ad-hoc interface is allowed.\n");
 		ret = -ELNRNG;
 		goto end;

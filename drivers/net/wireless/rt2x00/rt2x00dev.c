@@ -825,6 +825,18 @@ static void rt2x00lib_rate(struct ieee80211_rate *entry,
 		entry->flags |= IEEE80211_RATE_SHORT_PREAMBLE;
 }
 
+const u8 *rt2x00lib_get_mac_address(struct rt2x00_dev *rt2x00dev)
+{
+	struct rt2x00_platform_data *pdata;
+
+	pdata = rt2x00dev->dev->platform_data;
+	if (!pdata)
+		return NULL;
+
+	return pdata->mac_address;
+}
+EXPORT_SYMBOL_GPL(rt2x00lib_get_mac_address);
+
 static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 				    struct hw_mode_spec *spec)
 {
@@ -833,6 +845,22 @@ static int rt2x00lib_probe_hw_modes(struct rt2x00_dev *rt2x00dev,
 	struct ieee80211_rate *rates;
 	unsigned int num_rates;
 	unsigned int i;
+
+	if (rt2x00dev->dev->platform_data) {
+		struct rt2x00_platform_data *pdata;
+
+		pdata = rt2x00dev->dev->platform_data;
+		if (pdata->disable_2ghz)
+			spec->supported_bands &= ~SUPPORT_BAND_2GHZ;
+		if (pdata->disable_5ghz)
+			spec->supported_bands &= ~SUPPORT_BAND_5GHZ;
+	}
+
+	if ((spec->supported_bands & SUPPORT_BAND_BOTH) == 0) {
+		ERROR(rt2x00dev, "No supported bands\n");
+		return -EINVAL;
+	}
+
 
 	num_rates = 0;
 	if (spec->supported_rates & SUPPORT_RATE_CCK)
@@ -1163,6 +1191,10 @@ int rt2x00lib_probe_dev(struct rt2x00_dev *rt2x00dev)
 
 	rt2x00dev->hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 
+	retval = rt2x00lib_load_eeprom_file(rt2x00dev);
+	if (retval)
+		goto exit;
+
 	/*
 	 * Initialize work.
 	 */
@@ -1287,6 +1319,11 @@ void rt2x00lib_remove_dev(struct rt2x00_dev *rt2x00dev)
 	 */
 	if (rt2x00dev->drv_data)
 		kfree(rt2x00dev->drv_data);
+
+	/*
+	 * Free EEPROM image.
+	 */
+	rt2x00lib_free_eeprom_file(rt2x00dev);
 }
 EXPORT_SYMBOL_GPL(rt2x00lib_remove_dev);
 

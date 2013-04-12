@@ -1,7 +1,10 @@
 obj-m += compat.o
 #compat-objs :=
 
-obj-$(CONFIG_COMPAT_FIRMWARE_CLASS) += compat_firmware_class.o
+ifdef CONFIG_COMPAT_FIRMWARE_CLASS
+  compat-y += compat_firmware_class.o
+endif
+
 obj-$(CONFIG_COMPAT_NET_SCH_CODEL) += sch_codel.o
 
 sch_fq_codel-y = sch_fq_codel_core.o flow_dissector.o
@@ -47,8 +50,6 @@ compat-$(CONFIG_COMPAT_KERNEL_3_3) += \
 compat-$(CONFIG_COMPAT_KERNEL_3_4) += compat-3.4.o
 compat-$(CONFIG_COMPAT_KERNEL_3_7) += compat-3.7.o
 
-compat-$(CONFIG_COMPAT_CORDIC) += cordic.o
-compat-$(CONFIG_COMPAT_CRC8) += crc8.o
 
 ifndef CONFIG_64BIT
 ifndef CONFIG_GENERIC_ATOMIC64

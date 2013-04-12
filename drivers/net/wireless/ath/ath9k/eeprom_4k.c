@@ -195,7 +195,7 @@ static int ath9k_hw_4k_check_eeprom(struct ath_hw *ah)
 	int i, addr;
 
 
-	if (!ath9k_hw_use_flash(ah)) {
+	if (!(ah->ah_flags & AH_NO_EEP_SWAP)) {
 		if (!ath9k_hw_nvram_read(common, AR5416_EEPROM_MAGIC_OFFSET,
 					 &magic)) {
 			ath_err(common, "Reading Magic # failed\n");

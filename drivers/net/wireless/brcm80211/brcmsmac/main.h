@@ -65,7 +65,7 @@
 #define	SW_TIMER_MAC_STAT_UPD		30	/* periodic MAC stats update */
 
 /* max # supported core revisions (0 .. MAXCOREREV - 1) */
-#define	MAXCOREREV		28
+#define	MAXCOREREV		29
 
 /* Double check that unsupported cores are not enabled */
 #if CONF_MSK(D11CONF, 0x4f) || CONF_GE(D11CONF, MAXCOREREV)

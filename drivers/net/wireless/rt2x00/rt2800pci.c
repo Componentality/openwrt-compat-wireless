@@ -89,20 +89,10 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 	rt2x00pci_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
 }
 
-#if defined(CONFIG_RALINK_RT288X) || defined(CONFIG_RALINK_RT305X)
-static void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
+static void rt2800pci_read_eeprom_file(struct rt2x00_dev *rt2x00dev)
 {
-	void __iomem *base_addr = ioremap(0x1F040000, EEPROM_SIZE);
-
-	memcpy_fromio(rt2x00dev->eeprom, base_addr, EEPROM_SIZE);
-
-	iounmap(base_addr);
+	memcpy(rt2x00dev->eeprom, rt2x00dev->eeprom_file->data, EEPROM_SIZE);
 }
-#else
-static inline void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
-{
-}
-#endif /* CONFIG_RALINK_RT288X || CONFIG_RALINK_RT305X */
 
 #ifdef CONFIG_PCI
 static void rt2800pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
@@ -319,6 +309,20 @@ static int rt2800pci_write_firmware(struct rt2x00_dev *rt2x00dev,
 	rt2x00pci_register_write(rt2x00dev, H2M_MAILBOX_CSR, 0);
 
 	return 0;
+}
+
+/*
+ * EEPROM file functions.
+ */
+static char *rt2800pci_get_eeprom_file_name(struct rt2x00_dev *rt2x00dev)
+{
+	struct rt2x00_platform_data *pdata;
+
+	pdata = rt2x00dev->dev->platform_data;
+	if (pdata)
+		return pdata->eeprom_file_name;
+
+	return NULL;
 }
 
 /*
@@ -972,8 +976,9 @@ static irqreturn_t rt2800pci_interrupt(int irq, void *dev_instance)
  */
 static void rt2800pci_read_eeprom(struct rt2x00_dev *rt2x00dev)
 {
-	if (rt2x00_is_soc(rt2x00dev))
-		rt2800pci_read_eeprom_soc(rt2x00dev);
+	if (rt2x00_is_soc(rt2x00dev) ||
+	    test_bit(REQUIRE_EEPROM_FILE, &rt2x00dev->cap_flags))
+		rt2800pci_read_eeprom_file(rt2x00dev);
 	else if (rt2800pci_efuse_detect(rt2x00dev))
 		rt2800pci_read_eeprom_efuse(rt2x00dev);
 	else
@@ -1033,6 +1038,7 @@ static const struct rt2x00lib_ops rt2800pci_rt2x00_ops = {
 	.get_firmware_name	= rt2800pci_get_firmware_name,
 	.check_firmware		= rt2800_check_firmware,
 	.load_firmware		= rt2800_load_firmware,
+	.get_eeprom_file_name   = rt2800pci_get_eeprom_file_name,
 	.initialize		= rt2x00pci_initialize,
 	.uninitialize		= rt2x00pci_uninitialize,
 	.get_entry_state	= rt2800pci_get_entry_state,

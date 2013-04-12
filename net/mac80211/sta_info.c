@@ -254,6 +254,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	do_posix_clock_monotonic_gettime(&uptime);
 	sta->last_connected = uptime.tv_sec;
 	ewma_init(&sta->avg_signal, 1024, 8);
+	for (i = 0; i < ARRAY_SIZE(sta->chain_signal_avg); i++)
+		ewma_init(&sta->chain_signal_avg[i], 1024, 8);
 
 	if (sta_prepare_rate_control(local, sta, gfp)) {
 		kfree(sta);
@@ -585,7 +587,7 @@ static bool sta_info_cleanup_expire_buffered_ac(struct ieee80211_local *local,
 		 */
 		if (!skb)
 			break;
-		dev_kfree_skb(skb);
+		ieee80211_free_txskb(&local->hw, skb);
 	}
 
 	/*
@@ -614,7 +616,7 @@ static bool sta_info_cleanup_expire_buffered_ac(struct ieee80211_local *local,
 		local->total_ps_buffered--;
 		ps_dbg(sta->sdata, "Buffered frame expired (STA %pM)\n",
 		       sta->sta.addr);
-		dev_kfree_skb(skb);
+		ieee80211_free_txskb(&local->hw, skb);
 	}
 
 	/*
@@ -674,7 +676,7 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 	 * will be sufficient.
 	 */
 	set_sta_flag(sta, WLAN_STA_BLOCK_BA);
-	ieee80211_sta_tear_down_BA_sessions(sta, true);
+	ieee80211_sta_tear_down_BA_sessions(sta, false);
 
 	ret = sta_info_hash_del(local, sta);
 	if (ret)
@@ -730,8 +732,8 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 
 	for (ac = 0; ac < IEEE80211_NUM_ACS; ac++) {
 		local->total_ps_buffered -= skb_queue_len(&sta->ps_tx_buf[ac]);
-		__skb_queue_purge(&sta->ps_tx_buf[ac]);
-		__skb_queue_purge(&sta->tx_filtered[ac]);
+		ieee80211_purge_tx_queue(&local->hw, &sta->ps_tx_buf[ac]);
+		ieee80211_purge_tx_queue(&local->hw, &sta->tx_filtered[ac]);
 	}
 
 #ifdef CONFIG_MAC80211_MESH
@@ -765,7 +767,7 @@ int __must_check __sta_info_destroy(struct sta_info *sta)
 		tid_tx = rcu_dereference_raw(sta->ampdu_mlme.tid_tx[i]);
 		if (!tid_tx)
 			continue;
-		__skb_queue_purge(&tid_tx->pending);
+		ieee80211_purge_tx_queue(&local->hw, &tid_tx->pending);
 		kfree(tid_tx);
 	}
 

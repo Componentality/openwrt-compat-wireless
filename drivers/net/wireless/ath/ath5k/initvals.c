@@ -65,8 +65,14 @@ static const struct ath5k_ini ar5210_ini[] = {
 	{ AR5K_IMR,		0 },
 	{ AR5K_IER,		AR5K_IER_DISABLE },
 	{ AR5K_BSR,		0, AR5K_INI_READ },
+#if !defined(CONFIG_ATHEROS_AR71XX) && !defined(CONFIG_ATH79)
 	{ AR5K_TXCFG,		AR5K_DMASIZE_128B },
 	{ AR5K_RXCFG,		AR5K_DMASIZE_128B },
+#else
+	/* WAR for AR71xx PCI bug */
+	{ AR5K_TXCFG,		AR5K_DMASIZE_128B },
+	{ AR5K_RXCFG,		AR5K_DMASIZE_4B },
+#endif
 	{ AR5K_CFG,		AR5K_INIT_CFG },
 	{ AR5K_TOPS,		8 },
 	{ AR5K_RXNOFRM,		8 },

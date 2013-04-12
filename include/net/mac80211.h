@@ -729,6 +729,9 @@ enum mac80211_rx_flags {
  * @signal: signal strength when receiving this frame, either in dBm, in dB or
  *	unspecified depending on the hardware capabilities flags
  *	@IEEE80211_HW_SIGNAL_*
+ * @chains: bitmask of receive chains for which separate signal strength
+ *	values were filled.
+ * @chain_signal: per-chain signal strength, same format as @signal
  * @antenna: antenna used
  * @rate_idx: index of data rate into band's supported rates or MCS index if
  *	HT rates are use (RX_FLAG_HT)
@@ -749,6 +752,8 @@ struct ieee80211_rx_status {
 	u8 band;
 	u8 antenna;
 	s8 signal;
+	u8 chains;
+	s8 chain_signal[4];
 	u8 ampdu_delimiter_crc;
 };
 
@@ -846,6 +851,7 @@ enum ieee80211_smps_mode {
  *	the CONF_PS flag is set.
  *
  * @power_level: requested transmit power (in dBm)
+ * @max_antenna_gain: maximum antenna gain adjusted by user config (in dBi)
  *
  * @channel: the channel to tune to
  * @channel_type: the channel (HT) type
@@ -865,6 +871,7 @@ struct ieee80211_conf {
 	u32 flags;
 	int power_level, dynamic_ps_timeout;
 	int max_sleep_period;
+	int max_antenna_gain;
 
 	u16 listen_interval;
 	u8 ps_dtim_period;
@@ -1372,6 +1379,7 @@ struct ieee80211_hw {
 	u8 max_tx_aggregation_subframes;
 	u8 offchannel_tx_hw_queue;
 	u8 radiotap_mcs_details;
+	s8 cur_power_level;
 	netdev_features_t netdev_features;
 };
 
@@ -3713,7 +3721,7 @@ void ieee80211_send_bar(struct ieee80211_vif *vif, u8 *ra, u16 tid, u16 ssn);
  *	(deprecated; this will be removed once drivers get updated to use
  *	rate_idx_mask)
  * @rate_idx_mask: user-requested (legacy) rate mask
- * @rate_idx_mcs_mask: user-requested MCS rate mask
+ * @rate_idx_mcs_mask: user-requested MCS rate mask (NULL if not in use)
  * @bss: whether this frame is sent out in AP or IBSS mode
  */
 struct ieee80211_tx_rate_control {
@@ -3725,7 +3733,7 @@ struct ieee80211_tx_rate_control {
 	bool rts, short_preamble;
 	u8 max_rate_idx;
 	u32 rate_idx_mask;
-	u8 rate_idx_mcs_mask[IEEE80211_HT_MCS_MASK_LEN];
+	u8 *rate_idx_mcs_mask;
 	bool bss;
 };
 

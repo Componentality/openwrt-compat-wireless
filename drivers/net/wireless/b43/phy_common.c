@@ -266,6 +266,12 @@ void b43_phy_write(struct b43_wldev *dev, u16 reg, u16 value)
 {
 	assert_mac_suspended(dev);
 	dev->phy.ops->phy_write(dev, reg, value);
+#ifdef CONFIG_BCM47XX
+	if (b43_bus_host_is_pci(dev->dev) && reg == 0x72) {
+		b43_read16(dev, B43_MMIO_PHY_VER);
+		return;
+	}
+#endif
 	if (++dev->phy.writes_counter == B43_MAX_WRITES_IN_ROW) {
 		b43_read16(dev, B43_MMIO_PHY_VER);
 		dev->phy.writes_counter = 0;

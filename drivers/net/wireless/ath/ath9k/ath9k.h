@@ -122,7 +122,7 @@ void ath_descdma_cleanup(struct ath_softc *sc, struct ath_descdma *dd,
 /* RX / TX */
 /***********/
 
-#define ATH_RXBUF               512
+#define ATH_RXBUF               256
 #define ATH_TXBUF               512
 #define ATH_TXBUF_RESERVE       5
 #define ATH_MAX_QDEPTH          (ATH_TXBUF / 4 - ATH_TXBUF_RESERVE)
@@ -538,6 +538,9 @@ struct ath9k_wow_pattern {
 #ifdef CONFIG_MAC80211_LEDS
 void ath_init_leds(struct ath_softc *sc);
 void ath_deinit_leds(struct ath_softc *sc);
+int ath_create_gpio_led(struct ath_softc *sc, int gpio, const char *name,
+                        const char *trigger, bool active_low);
+
 #else
 static inline void ath_init_leds(struct ath_softc *sc)
 {
@@ -655,10 +658,18 @@ struct ath9k_vif_iter_data {
 	int nadhocs;   /* number of adhoc vifs */
 };
 
+struct ath_led {
+	struct list_head list;
+	struct ath_softc *sc;
+	const struct gpio_led *gpio;
+	struct led_classdev cdev;
+};
+
 struct ath_softc {
 	struct ieee80211_hw *hw;
 	struct device *dev;
 
+	u32 chan_bw;
 	struct survey_info *cur_survey;
 	struct survey_info survey[ATH9K_NUM_CHANNELS];
 
@@ -695,9 +706,8 @@ struct ath_softc {
 	struct ieee80211_supported_band sbands[IEEE80211_NUM_BANDS];
 
 #ifdef CONFIG_MAC80211_LEDS
-	bool led_registered;
-	char led_name[32];
-	struct led_classdev led_cdev;
+	const char *led_default_trigger;
+	struct list_head leds;
 #endif
 
 	struct ath9k_hw_cal_data caldata;
@@ -734,6 +744,7 @@ struct ath_softc {
 #endif
 };
 
+int ath9k_config(struct ieee80211_hw *hw, u32 changed);
 void ath9k_tasklet(unsigned long data);
 int ath_cabq_update(struct ath_softc *);
 

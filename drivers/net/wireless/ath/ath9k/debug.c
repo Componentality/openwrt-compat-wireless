@@ -997,12 +997,12 @@ void ath_debug_stat_rx(struct ath_softc *sc, struct ath_rx_status *rs)
 #ifdef CONFIG_ATH9K_MAC_DEBUG
 	spin_lock(&sc->debug.samp_lock);
 	RX_SAMP_DBG(jiffies) = jiffies;
-	RX_SAMP_DBG(rssi_ctl0) = rs->rs_rssi_ctl0;
-	RX_SAMP_DBG(rssi_ctl1) = rs->rs_rssi_ctl1;
-	RX_SAMP_DBG(rssi_ctl2) = rs->rs_rssi_ctl2;
-	RX_SAMP_DBG(rssi_ext0) = rs->rs_rssi_ext0;
-	RX_SAMP_DBG(rssi_ext1) = rs->rs_rssi_ext1;
-	RX_SAMP_DBG(rssi_ext2) = rs->rs_rssi_ext2;
+	RX_SAMP_DBG(rssi_ctl0) = rs->rs_rssi_ctl[0];
+	RX_SAMP_DBG(rssi_ctl1) = rs->rs_rssi_ctl[1];
+	RX_SAMP_DBG(rssi_ctl2) = rs->rs_rssi_ctl[2];
+	RX_SAMP_DBG(rssi_ext0) = rs->rs_rssi_ext[0];
+	RX_SAMP_DBG(rssi_ext1) = rs->rs_rssi_ext[1];
+	RX_SAMP_DBG(rssi_ext2) = rs->rs_rssi_ext[2];
 	RX_SAMP_DBG(antenna) = rs->rs_antenna;
 	RX_SAMP_DBG(rssi) = rs->rs_rssi;
 	RX_SAMP_DBG(rate) = rs->rs_rate;
@@ -1254,6 +1254,61 @@ static const struct file_operations fops_modal_eeprom = {
 	.owner = THIS_MODULE,
 	.llseek = default_llseek,
 };
+
+#ifdef CONFIG_MAC80211_LEDS
+
+static ssize_t write_file_gpio_led(struct file *file, const char __user *ubuf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char buf[32], *str, *name, *c;
+	ssize_t len;
+	unsigned int gpio;
+	bool active_low = false;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	name = strchr(buf, ',');
+	if (!name)
+		return -EINVAL;
+
+	*(name++) = 0;
+	if (!*name)
+		return -EINVAL;
+
+	c = strchr(name, '\n');
+	if (c)
+		*c = 0;
+
+	str = buf;
+	if (*str == '!') {
+		str++;
+		active_low = true;
+	}
+
+	if (kstrtouint(str, 0, &gpio) < 0)
+		return -EINVAL;
+
+	if (gpio >= sc->sc_ah->caps.num_gpio_pins)
+		return -EINVAL;
+
+	if (ath_create_gpio_led(sc, gpio, name, NULL, active_low) < 0)
+		return -EINVAL;
+
+	return count;
+}
+
+static const struct file_operations fops_gpio_led = {
+	.write = write_file_gpio_led,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+#endif
 
 #ifdef CONFIG_ATH9K_MAC_DEBUG
 
@@ -1532,6 +1587,141 @@ static const struct file_operations fops_samps = {
 
 #endif
 
+static ssize_t read_file_eeprom(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	struct ath_common *common = ath9k_hw_common(ah);
+	int bytes = 0;
+	int pos = *ppos;
+	int size = 4096;
+	u16 val;
+	int i;
+
+	if (AR_SREV_9300_20_OR_LATER(ah))
+		size = 16384;
+
+	if (*ppos < 0)
+		return -EINVAL;
+
+	if (count > size - *ppos)
+		count = size - *ppos;
+
+	for (i = *ppos / 2; count > 0; count -= bytes, *ppos += bytes, i++) {
+		void *from = &val;
+
+		if (!common->bus_ops->eeprom_read(common, i, &val))
+			val = 0xffff;
+
+		if (*ppos % 2) {
+			from++;
+			bytes = 1;
+		} else if (count == 1) {
+			bytes = 1;
+		} else {
+			bytes = 2;
+		}
+		copy_to_user(user_buf, from, bytes);
+		user_buf += bytes;
+	}
+	return *ppos - pos;
+}
+
+static const struct file_operations fops_eeprom = {
+	.read = read_file_eeprom,
+	.open = simple_open,
+	.owner = THIS_MODULE
+};
+
+
+static ssize_t read_file_chan_bw(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	char buf[32];
+	unsigned int len;
+
+	len = sprintf(buf, "0x%08x\n", sc->chan_bw);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_chan_bw(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	unsigned long chan_bw;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &chan_bw))
+		return -EINVAL;
+
+	sc->chan_bw = chan_bw;
+	if (!test_bit(SC_OP_INVALID, &sc->sc_flags))
+		ath9k_config(sc->hw, IEEE80211_CONF_CHANGE_CHANNEL);
+
+	return count;
+}
+
+static const struct file_operations fops_chanbw = {
+	.read = read_file_chan_bw,
+	.write = write_file_chan_bw,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+
+static ssize_t read_file_diag(struct file *file, char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	char buf[32];
+	unsigned int len;
+
+	len = sprintf(buf, "0x%08lx\n", ah->diag);
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_diag(struct file *file, const char __user *user_buf,
+			     size_t count, loff_t *ppos)
+{
+	struct ath_softc *sc = file->private_data;
+	struct ath_hw *ah = sc->sc_ah;
+	unsigned long diag;
+	char buf[32];
+	ssize_t len;
+
+	len = min(count, sizeof(buf) - 1);
+	if (copy_from_user(buf, user_buf, len))
+		return -EFAULT;
+
+	buf[len] = '\0';
+	if (strict_strtoul(buf, 0, &diag))
+		return -EINVAL;
+
+	ah->diag = diag;
+	ath9k_hw_update_diag(ah);
+
+	return count;
+}
+
+static const struct file_operations fops_diag = {
+	.read = read_file_diag,
+	.write = write_file_diag,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+	.llseek = default_llseek,
+};
+
+
 int ath9k_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
@@ -1577,6 +1767,8 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    sc->debug.debugfs_phy, sc, &fops_tx_chainmask);
 	debugfs_create_file("disable_ani", S_IRUSR | S_IWUSR,
 			    sc->debug.debugfs_phy, sc, &fops_disable_ani);
+	debugfs_create_bool("paprd", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+			    &sc->sc_ah->config.enable_paprd);
 	debugfs_create_file("regidx", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
 			    sc, &fops_regidx);
 	debugfs_create_file("regval", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
@@ -1597,11 +1789,25 @@ int ath9k_init_debug(struct ath_hw *ah)
 			    &fops_samps);
 #endif
 
+#ifdef CONFIG_MAC80211_LEDS
+	debugfs_create_file("gpio_led", S_IWUSR,
+			   sc->debug.debugfs_phy, sc, &fops_gpio_led);
+#endif
+
 	debugfs_create_u32("gpio_mask", S_IRUSR | S_IWUSR,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_mask);
 
 	debugfs_create_u32("gpio_val", S_IRUSR | S_IWUSR,
 			   sc->debug.debugfs_phy, &sc->sc_ah->gpio_val);
+
+	debugfs_create_file("eeprom", S_IRUSR, sc->debug.debugfs_phy, sc,
+			    &fops_eeprom);
+
+	debugfs_create_file("chanbw", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+			    sc, &fops_chanbw);
+
+	debugfs_create_file("diag", S_IRUSR | S_IWUSR, sc->debug.debugfs_phy,
+			    sc, &fops_diag);
 
 	return 0;
 }

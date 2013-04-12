@@ -10,7 +10,7 @@
 
 #include <linux/compat.h>
 
-#if defined(CONFIG_PCCARD) || defined(CONFIG_PCCARD_MODULE)
+#if 0
 
 /**
  * pccard_loop_tuple() - loop over tuples in the CIS
@@ -72,7 +72,7 @@ next_entry:
 EXPORT_SYMBOL_GPL(pccard_loop_tuple);
 /* Source: drivers/pcmcia/cistpl.c */
 
-#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
+#if 0
 
 struct pcmcia_loop_mem {
 	struct pcmcia_device *p_dev;

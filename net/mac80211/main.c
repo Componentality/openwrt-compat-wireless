@@ -101,7 +101,7 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 {
 	struct ieee80211_channel *chan;
 	int ret = 0;
-	int power;
+	int power, ant_gain, max_power;
 	enum nl80211_channel_type channel_type;
 	u32 offchannel_flag;
 
@@ -152,21 +152,32 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		changed |= IEEE80211_CONF_CHANGE_SMPS;
 	}
 
-	if (test_bit(SCAN_SW_SCANNING, &local->scanning) ||
-	    test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) ||
-	    test_bit(SCAN_HW_SCANNING, &local->scanning))
-		power = chan->max_power;
-	else
-		power = local->power_constr_level ?
-			min(chan->max_power,
-				(chan->max_reg_power  - local->power_constr_level)) :
-			chan->max_power;
+	max_power = chan->max_reg_power;
+	if (!test_bit(SCAN_SW_SCANNING, &local->scanning) &&
+	    !test_bit(SCAN_ONCHANNEL_SCANNING, &local->scanning) &&
+	    !test_bit(SCAN_HW_SCANNING, &local->scanning) &&
+	    local->ap_power_level)
+		max_power = min(max_power, local->ap_power_level);
+
+	ant_gain = chan->max_antenna_gain;
+	if (local->user_antenna_gain > 0) {
+		if (local->user_antenna_gain > ant_gain) {
+			max_power -= local->user_antenna_gain - ant_gain;
+			ant_gain = 0;
+		} else
+			ant_gain -= local->user_antenna_gain;
+	}
+
+	power = min(chan->max_power, max_power);
 
 	if (local->user_power_level >= 0)
 		power = min(power, local->user_power_level);
 
-	if (local->hw.conf.power_level != power) {
+	if (local->hw.conf.power_level != power ||
+		local->hw.conf.max_antenna_gain != ant_gain) {
 		changed |= IEEE80211_CONF_CHANGE_POWER;
+		local->hw.conf.max_antenna_gain = ant_gain;
+		local->hw.cur_power_level = power;
 		local->hw.conf.power_level = power;
 	}
 
@@ -621,6 +632,7 @@ struct ieee80211_hw *ieee80211_alloc_hw(size_t priv_data_len,
 					 IEEE80211_RADIOTAP_MCS_HAVE_GI |
 					 IEEE80211_RADIOTAP_MCS_HAVE_BW;
 	local->user_power_level = -1;
+	local->user_antenna_gain = -1;
 	wiphy->ht_capa_mod_mask = &mac80211_ht_capa_mod_mask;
 
 	INIT_LIST_HEAD(&local->interfaces);
@@ -794,17 +806,11 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 	 */
 	for (i = 0; i < hw->wiphy->n_iface_combinations; i++) {
 		const struct ieee80211_iface_combination *c;
-		int j;
 
 		c = &hw->wiphy->iface_combinations[i];
 
 		if (c->num_different_channels > 1)
 			return -EINVAL;
-
-		for (j = 0; j < c->n_limits; j++)
-			if ((c->limits[j].types & BIT(NL80211_IFTYPE_ADHOC)) &&
-			    c->limits[j].max > 1)
-				return -EINVAL;
 	}
 
 #ifndef CONFIG_MAC80211_MESH

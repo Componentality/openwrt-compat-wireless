@@ -741,18 +741,15 @@ compat_request_firmware_nowait(
 	return 0;
 }
 
-static int __init firmware_class_init(void)
+int __init firmware_class_init(void)
 {
 	return class_register(&firmware_class);
 }
 
-static void __exit firmware_class_exit(void)
+void __exit firmware_class_exit(void)
 {
 	class_unregister(&firmware_class);
 }
-
-fs_initcall(firmware_class_init);
-module_exit(firmware_class_exit);
 
 EXPORT_SYMBOL_GPL(release_firmware);
 EXPORT_SYMBOL_GPL(request_firmware);

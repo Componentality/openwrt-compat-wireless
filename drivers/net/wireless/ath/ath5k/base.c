@@ -325,6 +325,8 @@ ath5k_setup_channels(struct ath5k_hw *ah, struct ieee80211_channel *channels,
 		if (!ath5k_is_standard_channel(ch, band))
 			continue;
 
+		channels[count].max_power = AR5K_TUNE_MAX_TXPOWER/2;
+
 		count++;
 	}
 
@@ -850,7 +852,7 @@ ath5k_txbuf_free_skb(struct ath5k_hw *ah, struct ath5k_buf *bf)
 		return;
 	dma_unmap_single(ah->dev, bf->skbaddr, bf->skb->len,
 			DMA_TO_DEVICE);
-	dev_kfree_skb_any(bf->skb);
+	ieee80211_free_txskb(ah->hw, bf->skb);
 	bf->skb = NULL;
 	bf->skbaddr = 0;
 	bf->desc->ds_data = 0;
@@ -1577,7 +1579,7 @@ ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 	return;
 
 drop_packet:
-	dev_kfree_skb_any(skb);
+	ieee80211_free_txskb(hw, skb);
 }
 
 static void
@@ -1876,7 +1878,7 @@ ath5k_beacon_send(struct ath5k_hw *ah)
 	}
 
 	if ((ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs +
-			ah->num_mesh_vifs > 1) ||
+			ah->num_adhoc_vifs + ah->num_mesh_vifs > 1) ||
 			ah->opmode == NL80211_IFTYPE_MESH_POINT) {
 		u64 tsf = ath5k_hw_get_tsf64(ah);
 		u32 tsftu = TSF_TO_TU(tsf);
@@ -1962,7 +1964,7 @@ ath5k_beacon_update_timers(struct ath5k_hw *ah, u64 bc_tsf)
 
 	intval = ah->bintval & AR5K_BEACON_PERIOD;
 	if (ah->opmode == NL80211_IFTYPE_AP && ah->num_ap_vifs
-		+ ah->num_mesh_vifs > 1) {
+		+ ah->num_adhoc_vifs + ah->num_mesh_vifs > 1) {
 		intval /= ATH_BCBUF;	/* staggered multi-bss beacons */
 		if (intval < 15)
 			ATH5K_WARN(ah, "intval %u is too low, min 15\n",
@@ -2425,6 +2427,7 @@ static const struct ieee80211_iface_limit if_limits[] = {
 #ifdef CONFIG_MAC80211_MESH
 				 BIT(NL80211_IFTYPE_MESH_POINT) |
 #endif
+				 BIT(NL80211_IFTYPE_ADHOC) |
 				 BIT(NL80211_IFTYPE_AP) },
 };
 

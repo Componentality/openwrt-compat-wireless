@@ -17,6 +17,7 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/etherdevice.h>
 #include <asm/unaligned.h>
 
 #include "hw.h"
@@ -523,8 +524,16 @@ static int ath9k_hw_init_macaddr(struct ath_hw *ah)
 		common->macaddr[2 * i] = eeval >> 8;
 		common->macaddr[2 * i + 1] = eeval & 0xff;
 	}
-	if (sum == 0 || sum == 0xffff * 3)
-		return -EADDRNOTAVAIL;
+	if (!is_valid_ether_addr(common->macaddr)) {
+		ath_err(common,
+			"eeprom contains invalid mac address: %pM\n",
+			common->macaddr);
+
+		random_ether_addr(common->macaddr);
+		ath_err(common,
+			"random mac address will be used: %pM\n",
+			common->macaddr);
+	}
 
 	return 0;
 }
@@ -1740,6 +1749,20 @@ fail:
 	return -EINVAL;
 }
 
+void ath9k_hw_update_diag(struct ath_hw *ah)
+{
+	if (test_bit(ATH_DIAG_DISABLE_RX, &ah->diag))
+		REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_DIS);
+	else
+		REG_CLR_BIT(ah, AR_DIAG_SW, AR_DIAG_RX_DIS);
+
+	if (test_bit(ATH_DIAG_DISABLE_TX, &ah->diag))
+		REG_SET_BIT(ah, AR_DIAG_SW, AR_DIAG_LOOP_BACK);
+	else
+		REG_CLR_BIT(ah, AR_DIAG_SW, AR_DIAG_LOOP_BACK);
+}
+EXPORT_SYMBOL(ath9k_hw_update_diag);
+
 int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		   struct ath9k_hw_cal_data *caldata, bool fastcc)
 {
@@ -1940,8 +1963,8 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 		REG_WRITE(ah, AR_OBS, 8);
 
 	if (ah->config.rx_intr_mitigation) {
-		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_LAST, 500);
-		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_FIRST, 2000);
+		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_LAST, 250);
+		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_FIRST, 500);
 	}
 
 	if (ah->config.tx_intr_mitigation) {
@@ -2017,6 +2040,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	}
 
 	ath9k_hw_apply_gpio_override(ah);
+	ath9k_hw_update_diag(ah);
 
 	return 0;
 }
@@ -2389,17 +2413,25 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	}
 
 	eeval = ah->eep_ops->get_eeprom(ah, EEP_OP_MODE);
-	if ((eeval & (AR5416_OPFLAGS_11G | AR5416_OPFLAGS_11A)) == 0) {
-		ath_err(common,
-			"no band has been marked as supported in EEPROM\n");
-		return -EINVAL;
+
+	if (eeval & AR5416_OPFLAGS_11A) {
+		if (ah->disable_5ghz)
+			ath_warn(common, "disabling 5GHz band\n");
+		else
+			pCap->hw_caps |= ATH9K_HW_CAP_5GHZ;
 	}
 
-	if (eeval & AR5416_OPFLAGS_11A)
-		pCap->hw_caps |= ATH9K_HW_CAP_5GHZ;
+	if (eeval & AR5416_OPFLAGS_11G) {
+		if (ah->disable_2ghz)
+			ath_warn(common, "disabling 2GHz band\n");
+		else
+			pCap->hw_caps |= ATH9K_HW_CAP_2GHZ;
+	}
 
-	if (eeval & AR5416_OPFLAGS_11G)
-		pCap->hw_caps |= ATH9K_HW_CAP_2GHZ;
+	if ((pCap->hw_caps & (ATH9K_HW_CAP_2GHZ | ATH9K_HW_CAP_5GHZ)) == 0) {
+		ath_err(common, "both bands are disabled\n");
+		return -EINVAL;
+	}
 
 	if (AR_SREV_9485(ah) || AR_SREV_9285(ah) || AR_SREV_9330(ah))
 		chip_chainmask = 1;
@@ -2497,10 +2529,6 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 		pCap->rx_status_len = sizeof(struct ar9003_rxs);
 		pCap->tx_desc_len = sizeof(struct ar9003_txc);
 		pCap->txs_len = sizeof(struct ar9003_txs);
-		if (!ah->config.paprd_disable &&
-		    ah->eep_ops->get_eeprom(ah, EEP_PAPRD) &&
-		    !AR_SREV_9462(ah))
-			pCap->hw_caps |= ATH9K_HW_CAP_PAPRD;
 	} else {
 		pCap->tx_desc_len = sizeof(struct ath_desc);
 		if (AR_SREV_9280_20(ah))
@@ -2819,7 +2847,7 @@ void ath9k_hw_apply_txpower(struct ath_hw *ah, struct ath9k_channel *chan,
 	channel = chan->chan;
 	chan_pwr = min_t(int, channel->max_power * 2, MAX_RATE_POWER);
 	new_pwr = min_t(int, chan_pwr, reg->power_limit);
-	max_gain = chan_pwr - new_pwr + channel->max_antenna_gain * 2;
+	max_gain = chan_pwr - new_pwr + reg->max_antenna_gain * 2;
 
 	ant_gain = get_antenna_gain(ah, chan);
 	if (ant_gain > max_gain)

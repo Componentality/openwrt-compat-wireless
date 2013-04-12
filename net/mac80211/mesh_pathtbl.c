@@ -813,7 +813,6 @@ static void table_flush_by_iface(struct mesh_table *tbl,
 	struct hlist_node *p;
 	int i;
 
-	WARN_ON(!rcu_read_lock_held());
 	for_each_mesh_entry(tbl, p, node, i) {
 		mpath = node->mpath;
 		if (mpath->sdata != sdata)

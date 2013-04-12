@@ -189,7 +189,7 @@ static int ath9k_hw_ar9287_check_eeprom(struct ath_hw *ah)
 	struct ar9287_eeprom *eep = &ah->eeprom.map9287;
 	struct ath_common *common = ath9k_hw_common(ah);
 
-	if (!ath9k_hw_use_flash(ah)) {
+	if (!(ah->ah_flags & AH_NO_EEP_SWAP)) {
 		if (!ath9k_hw_nvram_read(common, AR5416_EEPROM_MAGIC_OFFSET,
 					 &magic)) {
 			ath_err(common, "Reading Magic # failed\n");

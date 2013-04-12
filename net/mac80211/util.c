@@ -406,7 +406,7 @@ void ieee80211_add_pending_skb(struct ieee80211_local *local,
 	int queue = info->hw_queue;
 
 	if (WARN_ON(!info->control.vif)) {
-		kfree_skb(skb);
+		ieee80211_free_txskb(&local->hw, skb);
 		return;
 	}
 
@@ -431,7 +431,7 @@ void ieee80211_add_pending_skbs_fn(struct ieee80211_local *local,
 		struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 		if (WARN_ON(!info->control.vif)) {
-			kfree_skb(skb);
+			ieee80211_free_txskb(&local->hw, skb);
 			continue;
 		}
 
@@ -792,8 +792,11 @@ u32 ieee802_11_parse_elems_crc(u8 *start, size_t len,
 			elems->country_elem_len = elen;
 			break;
 		case WLAN_EID_PWR_CONSTRAINT:
+			if (elen != 1) {
+				elem_parse_failed = true;
+				break;
+			}
 			elems->pwr_constr_elem = pos;
-			elems->pwr_constr_elem_len = elen;
 			break;
 		case WLAN_EID_TIMEOUT_INTERVAL:
 			elems->timeout_int = pos;

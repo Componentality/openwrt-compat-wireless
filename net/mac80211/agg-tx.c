@@ -81,7 +81,8 @@ static void ieee80211_send_addba_request(struct ieee80211_sub_if_data *sdata,
 	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN ||
-	    sdata->vif.type == NL80211_IFTYPE_MESH_POINT)
+	    sdata->vif.type == NL80211_IFTYPE_MESH_POINT ||
+	    sdata->vif.type == NL80211_IFTYPE_WDS)
 		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
@@ -460,6 +461,7 @@ int ieee80211_start_tx_ba_session(struct ieee80211_sta *pubsta, u16 tid,
 	    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
 	    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
 	    sdata->vif.type != NL80211_IFTYPE_AP &&
+	    sdata->vif.type != NL80211_IFTYPE_WDS &&
 	    sdata->vif.type != NL80211_IFTYPE_ADHOC)
 		return -EINVAL;
 
@@ -869,7 +871,7 @@ void ieee80211_process_addba_resp(struct ieee80211_local *local,
 
 	} else {
 		___ieee80211_stop_tx_ba_session(sta, tid, WLAN_BACK_INITIATOR,
-						true);
+						false);
 	}
 
  out:

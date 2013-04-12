@@ -420,7 +420,6 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct net_device *dev = wdev->netdev;
 	struct ieee80211_local *local = sdata->local;
-	struct sta_info *sta;
 	u32 changed = 0;
 	int res;
 	u32 hw_reconf_flags = 0;
@@ -575,30 +574,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 
 	set_bit(SDATA_STATE_RUNNING, &sdata->state);
 
-	if (sdata->vif.type == NL80211_IFTYPE_WDS) {
-		/* Create STA entry for the WDS peer */
-		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
-				     GFP_KERNEL);
-		if (!sta) {
-			res = -ENOMEM;
-			goto err_del_interface;
-		}
-
-		sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
-		sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
-		sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
-
-		res = sta_info_insert(sta);
-		if (res) {
-			/* STA has been freed */
-			goto err_del_interface;
-		}
-
-		rate_control_rate_init(sta);
-		netif_carrier_on(dev);
-	} else if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE) {
+	if (sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE)
 		rcu_assign_pointer(local->p2p_sdata, sdata);
-	}
 
 	/*
 	 * set_multicast_list will be invoked by the networking core
@@ -849,7 +826,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata,
 			struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 			if (info->control.vif == &sdata->vif) {
 				__skb_unlink(skb, &local->pending[i]);
-				dev_kfree_skb_irq(skb);
+				ieee80211_free_txskb(&local->hw, skb);
 			}
 		}
 	}
@@ -987,6 +964,7 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 static void ieee80211_if_setup(struct net_device *dev)
 {
 	ether_setup(dev);
+	dev->tx_queue_len = 32;
 	dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 	netdev_attach_ops(dev, &ieee80211_dataif_ops);
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2,6,29))
@@ -995,6 +973,72 @@ static void ieee80211_if_setup(struct net_device *dev)
 	dev->validate_addr = NULL;
 #endif
 	dev->destructor = free_netdev;
+}
+
+static void ieee80211_wds_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
+					 struct sk_buff *skb)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_rx_status *rx_status;
+	struct ieee802_11_elems elems;
+	struct ieee80211_mgmt *mgmt;
+	struct sta_info *sta;
+	size_t baselen;
+	u32 rates = 0;
+	u16 stype;
+	bool new = false;
+	enum ieee80211_band band = local->hw.conf.channel->band;
+	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
+
+	rx_status = IEEE80211_SKB_RXCB(skb);
+	mgmt = (struct ieee80211_mgmt *) skb->data;
+	stype = le16_to_cpu(mgmt->frame_control) & IEEE80211_FCTL_STYPE;
+
+	if (stype != IEEE80211_STYPE_BEACON)
+		return;
+
+	baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;
+	if (baselen > skb->len)
+		return;
+
+	ieee802_11_parse_elems(mgmt->u.probe_resp.variable,
+			       skb->len - baselen, &elems);
+
+	rates = ieee80211_sta_get_rates(local, &elems, band, NULL);
+
+	rcu_read_lock();
+
+	sta = sta_info_get(sdata, sdata->u.wds.remote_addr);
+
+	if (!sta) {
+		rcu_read_unlock();
+		sta = sta_info_alloc(sdata, sdata->u.wds.remote_addr,
+				     GFP_KERNEL);
+		if (!sta)
+			return;
+
+		new = true;
+	}
+
+	sta->last_rx = jiffies;
+	sta->sta.supp_rates[local->hw.conf.channel->band] = rates;
+
+	if (elems.ht_cap_elem)
+		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
+				elems.ht_cap_elem, &sta->sta.ht_cap);
+
+	if (elems.wmm_param)
+		set_sta_flag(sta, WLAN_STA_WME);
+
+	if (new) {
+		sta_info_pre_move_state(sta, IEEE80211_STA_AUTH);
+		sta_info_pre_move_state(sta, IEEE80211_STA_ASSOC);
+		sta_info_pre_move_state(sta, IEEE80211_STA_AUTHORIZED);
+		rate_control_rate_init(sta);
+		sta_info_insert_rcu(sta);
+	}
+
+	rcu_read_unlock();
 }
 
 static void ieee80211_iface_work(struct work_struct *work)
@@ -1100,6 +1144,9 @@ static void ieee80211_iface_work(struct work_struct *work)
 			if (!ieee80211_vif_is_mesh(&sdata->vif))
 				break;
 			ieee80211_mesh_rx_queued_mgmt(sdata, skb);
+			break;
+		case NL80211_IFTYPE_WDS:
+			ieee80211_wds_rx_queued_mgmt(sdata, skb);
 			break;
 		default:
 			WARN(1, "frame for unexpected interface type");

@@ -424,8 +424,8 @@ u32 ath_calcrxfilter(struct ath_softc *sc)
 		rfilt |= ATH9K_RX_FILTER_COMP_BAR;
 
 	if (sc->nvifs > 1 || (sc->rx.rxfilter & FIF_OTHER_BSS)) {
-		/* The following may also be needed for other older chips */
-		if (sc->sc_ah->hw_version.macVersion == AR_SREV_VERSION_9160)
+		/* This is needed for older chips */
+		if (sc->sc_ah->hw_version.macVersion <= AR_SREV_VERSION_9160)
 			rfilt |= ATH9K_RX_FILTER_PROM;
 		rfilt |= ATH9K_RX_FILTER_MCAST_BCAST_ALL;
 	}
@@ -955,6 +955,7 @@ static int ath9k_rx_skb_preprocess(struct ath_common *common,
 				   bool *decrypt_error)
 {
 	struct ath_hw *ah = common->ah;
+	int i, j;
 
 	/*
 	 * everything but the rate is checked here, the rate check is done
@@ -979,6 +980,20 @@ static int ath9k_rx_skb_preprocess(struct ath_common *common,
 	rx_status->flag |= RX_FLAG_MACTIME_MPDU;
 	if (rx_stats->rs_moreaggr)
 		rx_status->flag |= RX_FLAG_NO_SIGNAL_VAL;
+
+	for (i = 0, j = 0; i < ARRAY_SIZE(rx_stats->rs_rssi_ctl); i++) {
+		s8 rssi;
+
+		if (!(ah->rxchainmask & BIT(i)))
+			continue;
+
+		rssi = rx_stats->rs_rssi_ctl[i];
+		if (rssi != ATH9K_RSSI_BAD) {
+		    rx_status->chains |= BIT(j);
+		    rx_status->chain_signal[j] = ah->noise + rssi;
+		}
+		j++;
+	}
 
 	return 0;
 }

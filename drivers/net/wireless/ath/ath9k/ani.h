@@ -51,7 +51,7 @@
 #define ATH9K_ANI_PERIOD                  300
 
 /* in ms */
-#define ATH9K_ANI_POLLINTERVAL            1000
+#define ATH9K_ANI_POLLINTERVAL            100
 
 #define HAL_NOISE_IMMUNE_MAX              4
 #define HAL_SPUR_IMMUNE_MAX               7

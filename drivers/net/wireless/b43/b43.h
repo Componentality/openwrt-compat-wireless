@@ -807,6 +807,9 @@ struct b43_wldev {
 	bool qos_enabled;		/* TRUE, if QoS is used. */
 	bool hwcrypto_enabled;		/* TRUE, if HW crypto acceleration is enabled. */
 	bool use_pio;			/* TRUE if next init should use PIO */
+	int gpiomask;			/* GPIO LED mask as a module parameter */
+	int rx_antenna;			/* Used RX antenna (B43_ANTENNAxxx) */
+	int tx_antenna;			/* Used TX antenna (B43_ANTENNAxxx) */
 
 	/* PHY/Radio device. */
 	struct b43_phy phy;
@@ -1044,6 +1047,32 @@ static inline bool b43_using_pio_transfers(struct b43_wldev *dev)
 {
 	return dev->__using_pio_transfers;
 }
+
+/*
+ * bcm4716 (which includes 4717 & 4718), plus 4706 on PCIe can reorder
+ * transactions. As a fix, a read after write is performed on certain places
+ * in the code. Older chips and the newer 5357 family don't require this fix.
+ */
+#ifdef CONFIG_BCM47XX_BCMA
+#include <asm/mach-bcm47xx/bcm47xx.h>
+static inline void b43_wflush16(struct b43_wldev *dev, u16 offset, u16 value)
+{
+	if (b43_bus_host_is_pci(dev->dev) &&
+	    bcm47xx_bus_type == BCM47XX_BUS_TYPE_BCMA &&
+	    (bcm47xx_bus.bcma.bus.chipinfo.id == 0x4716 ||
+	     bcm47xx_bus.bcma.bus.chipinfo.id == 0x5300)) {
+		b43_write16(dev, offset, value);
+		b43_read16(dev, offset);
+	} else {
+		b43_write16(dev, offset, value);
+	}
+}
+#else
+static inline void b43_wflush16(struct b43_wldev *dev, u16 offset, u16 value)
+{
+	b43_write16(dev, offset, value);
+}
+#endif
 
 /* Message printing */
 __printf(2, 3) void b43info(struct b43_wl *wl, const char *fmt, ...);

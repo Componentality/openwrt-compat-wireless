@@ -73,6 +73,7 @@ struct ath_regulatory {
 	u16 max_power_level;
 	u16 current_rd;
 	int16_t power_limit;
+	int16_t max_antenna_gain;
 	struct reg_dmn_pair_mapping *regpair;
 };
 
@@ -280,13 +281,6 @@ void _ath_dbg(struct ath_common *common, enum ATH_DEBUG dbg_mask,
 #endif /* CONFIG_ATH_DEBUG */
 
 /** Returns string describing opmode, or NULL if unknown mode. */
-#ifdef CONFIG_ATH_DEBUG
 const char *ath_opmode_to_string(enum nl80211_iftype opmode);
-#else
-static inline const char *ath_opmode_to_string(enum nl80211_iftype opmode)
-{
-	return "UNKNOWN";
-}
-#endif
 
 #endif /* ATH_H */

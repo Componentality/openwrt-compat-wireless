@@ -12,6 +12,7 @@
 #include <linux/tty.h>
 #include <linux/sched.h>
 
+#ifdef CONFIG_COMPAT_BLUETOOTH
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27))
 /*
  *		Termios Helper Methods
@@ -111,4 +112,4 @@ int tty_set_termios(struct tty_struct *tty, struct ktermios *new_termios)
 }
 EXPORT_SYMBOL_GPL(tty_set_termios);
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,27)) */
-
+#endif

@@ -553,25 +553,25 @@ int ath9k_hw_rxprocdesc(struct ath_hw *ah, struct ath_desc *ds,
 
 	if (ads.ds_rxstatus8 & AR_PostDelimCRCErr) {
 		rs->rs_rssi = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ctl0 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ctl1 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ctl2 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ext0 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ext1 = ATH9K_RSSI_BAD;
-		rs->rs_rssi_ext2 = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl[0] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl[1] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ctl[2] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext[0] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext[1] = ATH9K_RSSI_BAD;
+		rs->rs_rssi_ext[2] = ATH9K_RSSI_BAD;
 	} else {
 		rs->rs_rssi = MS(ads.ds_rxstatus4, AR_RxRSSICombined);
-		rs->rs_rssi_ctl0 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl[0] = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt00);
-		rs->rs_rssi_ctl1 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl[1] = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt01);
-		rs->rs_rssi_ctl2 = MS(ads.ds_rxstatus0,
+		rs->rs_rssi_ctl[2] = MS(ads.ds_rxstatus0,
 						AR_RxRSSIAnt02);
-		rs->rs_rssi_ext0 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext[0] = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt10);
-		rs->rs_rssi_ext1 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext[1] = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt11);
-		rs->rs_rssi_ext2 = MS(ads.ds_rxstatus4,
+		rs->rs_rssi_ext[2] = MS(ads.ds_rxstatus4,
 						AR_RxRSSIAnt12);
 	}
 	if (ads.ds_rxstatus8 & AR_RxKeyIdxValid)
@@ -689,7 +689,7 @@ bool ath9k_hw_stopdmarecv(struct ath_hw *ah, bool *reset)
 {
 #define AH_RX_STOP_DMA_TIMEOUT 10000   /* usec */
 	struct ath_common *common = ath9k_hw_common(ah);
-	u32 mac_status, last_mac_status = 0;
+	u32 mac_status = 0, last_mac_status = 0;
 	int i;
 
 	/* Enable access to the DMA observation bus */
@@ -719,6 +719,16 @@ bool ath9k_hw_stopdmarecv(struct ath_hw *ah, bool *reset)
 	}
 
 	if (i == 0) {
+		if (!AR_SREV_9300_20_OR_LATER(ah) &&
+		    (mac_status & 0x700) == 0) {
+			/*
+			 * DMA is idle but the MAC is still stuck
+			 * processing events
+			 */
+			*reset = true;
+			return true;
+		}
+
 		ath_err(common,
 			"DMA failed to stop in %d ms AR_CR=0x%08x AR_DIAG_SW=0x%08x DMADBG_7=0x%08x\n",
 			AH_RX_STOP_DMA_TIMEOUT / 1000,

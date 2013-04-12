@@ -39,6 +39,7 @@
 #include <linux/input-polldev.h>
 #include <linux/kfifo.h>
 #include <linux/hrtimer.h>
+#include <linux/rt2x00_platform.h>
 
 #include <net/mac80211.h>
 
@@ -188,6 +189,7 @@ struct rt2x00_chip {
 #define RT3071		0x3071
 #define RT3090		0x3090	/* 2.4GHz PCIe */
 #define RT3290		0x3290
+#define RT3352		0x3352  /* WSOC */
 #define RT3390		0x3390
 #define RT3572		0x3572
 #define RT3593		0x3593
@@ -419,11 +421,13 @@ static inline struct rt2x00_intf* vif_to_intf(struct ieee80211_vif *vif)
  * @channels: Device/chipset specific channel values (See &struct rf_channel).
  * @channels_info: Additional information for channels (See &struct channel_info).
  * @ht: Driver HT Capabilities (See &ieee80211_sta_ht_cap).
+ * @clk_is_20mhz: External crystal of WiSoC is 20MHz instead of 40MHz
  */
 struct hw_mode_spec {
 	unsigned int supported_bands;
 #define SUPPORT_BAND_2GHZ	0x00000001
 #define SUPPORT_BAND_5GHZ	0x00000002
+#define SUPPORT_BAND_BOTH	(SUPPORT_BAND_2GHZ | SUPPORT_BAND_5GHZ)
 
 	unsigned int supported_rates;
 #define SUPPORT_RATE_CCK	0x00000001
@@ -434,6 +438,7 @@ struct hw_mode_spec {
 	const struct channel_info *channels_info;
 
 	struct ieee80211_sta_ht_cap ht;
+	int clk_is_20mhz;
 };
 
 /*
@@ -559,6 +564,7 @@ struct rt2x00lib_ops {
 			       const u8 *data, const size_t len);
 	int (*load_firmware) (struct rt2x00_dev *rt2x00dev,
 			      const u8 *data, const size_t len);
+	char *(*get_eeprom_file_name) (struct rt2x00_dev *rt2x00dev);
 
 	/*
 	 * Device initialization/deinitialization handlers.
@@ -720,6 +726,7 @@ enum rt2x00_capability_flags {
 	REQUIRE_SW_SEQNO,
 	REQUIRE_HT_TX_DESC,
 	REQUIRE_PS_AUTOWAKE,
+	REQUIRE_EEPROM_FILE,
 
 	/*
 	 * Capabilities
@@ -738,6 +745,8 @@ enum rt2x00_capability_flags {
 	CAPABILITY_DOUBLE_ANTENNA,
 	CAPABILITY_BT_COEXIST,
 	CAPABILITY_VCO_RECALIBRATION,
+	CAPABILITY_INTERNAL_PA_TX0,
+	CAPABILITY_INTERNAL_PA_TX1,
 };
 
 /*
@@ -973,6 +982,11 @@ struct rt2x00_dev {
 	 * Firmware image.
 	 */
 	const struct firmware *fw;
+
+	/*
+	 * EEPROM image.
+	 */
+	const struct firmware *eeprom_file;
 
 	/*
 	 * FIFO for storing tx status reports between isr and tasklet.
@@ -1271,6 +1285,7 @@ static inline void rt2x00debug_dump_frame(struct rt2x00_dev *rt2x00dev,
  */
 u32 rt2x00lib_get_bssidx(struct rt2x00_dev *rt2x00dev,
 			 struct ieee80211_vif *vif);
+const u8 *rt2x00lib_get_mac_address(struct rt2x00_dev *rt2x00dev);
 
 /*
  * Interrupt context handlers.

@@ -1271,6 +1271,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	struct sk_buff *skb = rx->skb;
 	struct ieee80211_rx_status *status = IEEE80211_SKB_RXCB(skb);
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
+	int i;
 
 	if (!sta)
 		return RX_CONTINUE;
@@ -1313,6 +1314,19 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		sta->last_signal = status->signal;
 		ewma_add(&sta->avg_signal, -status->signal);
+	}
+
+	if (status->chains) {
+		sta->chains = status->chains;
+		for (i = 0; i < 4; i++) {
+			int signal = status->chain_signal[i];
+
+			if (!(status->chains & BIT(i)))
+				continue;
+
+			sta->chain_signal_last[i] = signal;
+			ewma_add(&sta->chain_signal_avg[i], -signal);
+		}
 	}
 
 	/*
@@ -2279,6 +2293,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 		    sdata->vif.type != NL80211_IFTYPE_MESH_POINT &&
 		    sdata->vif.type != NL80211_IFTYPE_AP_VLAN &&
 		    sdata->vif.type != NL80211_IFTYPE_AP &&
+		    sdata->vif.type != NL80211_IFTYPE_WDS &&
 		    sdata->vif.type != NL80211_IFTYPE_ADHOC)
 			break;
 
@@ -2496,14 +2511,15 @@ ieee80211_rx_h_mgmt(struct ieee80211_rx_data *rx)
 
 	if (!ieee80211_vif_is_mesh(&sdata->vif) &&
 	    sdata->vif.type != NL80211_IFTYPE_ADHOC &&
-	    sdata->vif.type != NL80211_IFTYPE_STATION)
+	    sdata->vif.type != NL80211_IFTYPE_STATION &&
+	    sdata->vif.type != NL80211_IFTYPE_WDS)
 		return RX_DROP_MONITOR;
 
 	switch (stype) {
 	case cpu_to_le16(IEEE80211_STYPE_AUTH):
 	case cpu_to_le16(IEEE80211_STYPE_BEACON):
 	case cpu_to_le16(IEEE80211_STYPE_PROBE_RESP):
-		/* process for all: mesh, mlme, ibss */
+		/* process for all: mesh, mlme, ibss, wds */
 		break;
 	case cpu_to_le16(IEEE80211_STYPE_ASSOC_RESP):
 	case cpu_to_le16(IEEE80211_STYPE_REASSOC_RESP):
@@ -2827,10 +2843,16 @@ static int prepare_for_handlers(struct ieee80211_rx_data *rx,
 		}
 		break;
 	case NL80211_IFTYPE_WDS:
-		if (bssid || !ieee80211_is_data(hdr->frame_control))
-			return 0;
 		if (!ether_addr_equal(sdata->u.wds.remote_addr, hdr->addr2))
 			return 0;
+
+		if (ieee80211_is_data(hdr->frame_control) ||
+		    ieee80211_is_action(hdr->frame_control)) {
+			if (compare_ether_addr(sdata->vif.addr, hdr->addr1))
+				return 0;
+		} else if (!ieee80211_is_beacon(hdr->frame_control))
+			return 0;
+
 		break;
 	case NL80211_IFTYPE_P2P_DEVICE:
 		if (!ieee80211_is_public_action(hdr, skb->len) &&

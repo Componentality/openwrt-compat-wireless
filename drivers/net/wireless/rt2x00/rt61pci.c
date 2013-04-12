@@ -2392,6 +2392,7 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	u32 reg;
 	u16 word;
 	u8 *mac;
+	const u8 *pdata_mac;
 	s8 value;
 
 	rt2x00pci_register_read(rt2x00dev, E2PROM_CSR, &reg);
@@ -2412,7 +2413,11 @@ static int rt61pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Start validation of the data that has been read.
 	 */
+	pdata_mac = rt2x00lib_get_mac_address(rt2x00dev);
 	mac = rt2x00_eeprom_addr(rt2x00dev, EEPROM_MAC_ADDR_0);
+	if (pdata_mac)
+		memcpy(mac, pdata_mac, 6);
+
 	if (!is_valid_ether_addr(mac)) {
 		eth_random_addr(mac);
 		EEPROM(rt2x00dev, "MAC: %pM\n", mac);

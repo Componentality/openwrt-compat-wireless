@@ -36,6 +36,8 @@ static inline struct page *shmem_read_mapping_page(
 #endif
 
 
+#include <linux/mod_devicetable.h>
+
 /*
  * since commit 1c5cae815d19ffe02bdfda1260949ef2b1806171
  * "net: call dev_alloc_name from register_netdevice" dev_alloc_name is

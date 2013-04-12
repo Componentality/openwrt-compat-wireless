@@ -76,6 +76,11 @@ MODULE_FIRMWARE("b43/ucode16_mimo.fw");
 MODULE_FIRMWARE("b43/ucode5.fw");
 MODULE_FIRMWARE("b43/ucode9.fw");
 
+static int modparam_gpiomask = 0x000F;
+module_param_named(gpiomask, modparam_gpiomask, int, 0444);
+MODULE_PARM_DESC(gpiomask,
+         "GPIO mask for LED control (default 0x000F)");
+
 static int modparam_bad_frames_preempt;
 module_param_named(bad_frames_preempt, modparam_bad_frames_preempt, int, 0444);
 MODULE_PARM_DESC(bad_frames_preempt,
@@ -341,83 +346,59 @@ static int b43_ratelimit(struct b43_wl *wl)
 
 void b43info(struct b43_wl *wl, const char *fmt, ...)
 {
-	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_INFO)
 		return;
 	if (!b43_ratelimit(wl))
 		return;
-
 	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	printk(KERN_INFO "b43-%s: %pV",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
-
+	printk(KERN_INFO "b43-%s: ",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
+	vprintk(fmt, args);
 	va_end(args);
 }
 
 void b43err(struct b43_wl *wl, const char *fmt, ...)
 {
-	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_ERROR)
 		return;
 	if (!b43_ratelimit(wl))
 		return;
-
 	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	printk(KERN_ERR "b43-%s ERROR: %pV",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
-
+	printk(KERN_ERR "b43-%s ERROR: ",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
+	vprintk(fmt, args);
 	va_end(args);
 }
 
 void b43warn(struct b43_wl *wl, const char *fmt, ...)
 {
-	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_WARN)
 		return;
 	if (!b43_ratelimit(wl))
 		return;
-
 	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	printk(KERN_WARNING "b43-%s warning: %pV",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
-
+	printk(KERN_WARNING "b43-%s warning: ",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
+	vprintk(fmt, args);
 	va_end(args);
 }
 
 void b43dbg(struct b43_wl *wl, const char *fmt, ...)
 {
-	struct va_format vaf;
 	va_list args;
 
 	if (b43_modparam_verbose < B43_VERBOSITY_DEBUG)
 		return;
-
 	va_start(args, fmt);
-
-	vaf.fmt = fmt;
-	vaf.va = &args;
-
-	printk(KERN_DEBUG "b43-%s debug: %pV",
-	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan", &vaf);
-
+	printk(KERN_DEBUG "b43-%s debug: ",
+	       (wl && wl->hw) ? wiphy_name(wl->hw->wiphy) : "wlan");
+	vprintk(fmt, args);
 	va_end(args);
 }
 
@@ -1548,7 +1529,7 @@ static void b43_write_beacon_template(struct b43_wldev *dev,
 				  len, ram_offset, shm_size_offset, rate);
 
 	/* Write the PHY TX control parameters. */
-	antenna = B43_ANTENNA_DEFAULT;
+	antenna = dev->tx_antenna;
 	antenna = b43_antenna_to_phyctl(antenna);
 	ctl = b43_shm_read16(dev, B43_SHM_SHARED, B43_SHM_SH_BEACPHYCTL);
 	/* We can't send beacons with short preamble. Would get PHY errors. */
@@ -1904,10 +1885,12 @@ static void b43_do_interrupt_thread(struct b43_wldev *dev)
 			       dma_reason[0], dma_reason[1],
 			       dma_reason[2], dma_reason[3],
 			       dma_reason[4], dma_reason[5]);
+#ifdef CONFIG_B43_PIO
 			b43err(dev->wl, "This device does not support DMA "
 			       "on your system. It will now be switched to PIO.\n");
 			/* Fall back to PIO transfers if we get fatal DMA errors! */
 			dev->use_pio = true;
+#endif
 			b43_controller_restart(dev, "DMA error");
 			return;
 		}
@@ -2712,10 +2695,10 @@ static int b43_gpio_init(struct b43_wldev *dev)
 	u32 mask, set;
 
 	b43_maskset32(dev, B43_MMIO_MACCTL, ~B43_MACCTL_GPOUTSMSK, 0);
-	b43_maskset16(dev, B43_MMIO_GPIO_MASK, ~0, 0xF);
+	b43_maskset16(dev, B43_MMIO_GPIO_MASK, ~0, modparam_gpiomask);
 
 	mask = 0x0000001F;
-	set = 0x0000000F;
+	set = modparam_gpiomask;
 	if (dev->dev->chip_id == 0x4301) {
 		mask |= 0x0060;
 		set |= 0x0060;
@@ -3066,8 +3049,8 @@ static int b43_chip_init(struct b43_wldev *dev)
 
 	/* Select the antennae */
 	if (phy->ops->set_rx_antenna)
-		phy->ops->set_rx_antenna(dev, B43_ANTENNA_DEFAULT);
-	b43_mgmtframe_txantenna(dev, B43_ANTENNA_DEFAULT);
+		phy->ops->set_rx_antenna(dev, dev->rx_antenna);
+	b43_mgmtframe_txantenna(dev, dev->tx_antenna);
 
 	if (phy->type == B43_PHYTYPE_B) {
 		value16 = b43_read16(dev, 0x005E);
@@ -3811,7 +3794,6 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	struct b43_wldev *dev;
 	struct b43_phy *phy;
 	struct ieee80211_conf *conf = &hw->conf;
-	int antenna;
 	int err = 0;
 	bool reload_bss = false;
 
@@ -3865,11 +3847,9 @@ static int b43_op_config(struct ieee80211_hw *hw, u32 changed)
 	}
 
 	/* Antennas for RX and management frame TX. */
-	antenna = B43_ANTENNA_DEFAULT;
-	b43_mgmtframe_txantenna(dev, antenna);
-	antenna = B43_ANTENNA_DEFAULT;
+	b43_mgmtframe_txantenna(dev, dev->tx_antenna);
 	if (phy->ops->set_rx_antenna)
-		phy->ops->set_rx_antenna(dev, antenna);
+		phy->ops->set_rx_antenna(dev, dev->rx_antenna);
 
 	if (wl->radio_enabled != phy->radio_on) {
 		if (wl->radio_enabled) {
@@ -4991,6 +4971,47 @@ static int b43_op_get_survey(struct ieee80211_hw *hw, int idx,
 	return 0;
 }
 
+static int b43_op_set_antenna(struct ieee80211_hw *hw, u32 tx_ant, u32 rx_ant)
+{
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+	struct b43_wldev *dev = wl->current_dev;
+
+	if (tx_ant == 1 && rx_ant == 1) {
+		dev->tx_antenna = B43_ANTENNA0;
+		dev->rx_antenna = B43_ANTENNA0;
+	}
+	else if (tx_ant == 2 && rx_ant == 2) {
+		dev->tx_antenna = B43_ANTENNA1;
+		dev->rx_antenna = B43_ANTENNA1;
+	}
+	else if ((tx_ant & 3) == 3 && (rx_ant & 3) == 3) {
+		dev->tx_antenna = B43_ANTENNA_DEFAULT;
+		dev->rx_antenna = B43_ANTENNA_DEFAULT;
+	}
+	else {
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+
+static int b43_op_get_antenna(struct ieee80211_hw *hw, u32 *tx_ant, u32 *rx_ant)
+{
+	struct b43_wl *wl = hw_to_b43_wl(hw);
+	struct b43_wldev *dev = wl->current_dev;
+
+	switch (dev->tx_antenna) {
+	case B43_ANTENNA0:
+		*tx_ant = 1; *rx_ant = 1; break;
+	case B43_ANTENNA1:
+		*tx_ant = 2; *rx_ant = 2; break;
+	case B43_ANTENNA_DEFAULT:
+		*tx_ant = 3; *rx_ant = 3; break;
+	}
+	return 0;
+}
+
 static const struct ieee80211_ops b43_hw_ops = {
 	.tx			= b43_op_tx,
 	.conf_tx		= b43_op_conf_tx,
@@ -5012,6 +5033,8 @@ static const struct ieee80211_ops b43_hw_ops = {
 	.sw_scan_complete	= b43_op_sw_scan_complete_notifier,
 	.get_survey		= b43_op_get_survey,
 	.rfkill_poll		= b43_rfkill_poll,
+	.set_antenna		= b43_op_set_antenna,
+	.get_antenna		= b43_op_get_antenna,
 };
 
 /* Hard-reset the chip. Do not call this directly.
@@ -5258,6 +5281,8 @@ static int b43_one_core_attach(struct b43_bus_dev *dev, struct b43_wl *wl)
 	if (!wldev)
 		goto out;
 
+	wldev->rx_antenna = B43_ANTENNA_DEFAULT;
+	wldev->tx_antenna = B43_ANTENNA_DEFAULT;
 	wldev->use_pio = b43_modparam_pio;
 	wldev->dev = dev;
 	wldev->wl = wl;
@@ -5347,6 +5372,9 @@ static struct b43_wl *b43_wireless_init(struct b43_bus_dev *dev)
 		BIT(NL80211_IFTYPE_ADHOC);
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
+
+	hw->wiphy->available_antennas_rx = 0x3;
+	hw->wiphy->available_antennas_tx = 0x3;
 
 	wl->hw_registred = false;
 	hw->max_rates = 2;

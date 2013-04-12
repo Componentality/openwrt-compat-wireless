@@ -3,6 +3,10 @@
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,31))
 
+#undef CONFIG_RFKILL
+#undef CONFIG_RFKILL_LEDS
+#undef CONFIG_RFKILL_MODULE
+
 #include_next <linux/rfkill.h>
 
 #else

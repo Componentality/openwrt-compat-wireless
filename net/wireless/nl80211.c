@@ -355,6 +355,7 @@ static const struct nla_policy nl80211_policy[NL80211_ATTR_MAX+1] = {
 	[NL80211_ATTR_BG_SCAN_PERIOD] = { .type = NLA_U16 },
 	[NL80211_ATTR_WDEV] = { .type = NLA_U64 },
 	[NL80211_ATTR_USER_REG_HINT_TYPE] = { .type = NLA_U32 },
+	[NL80211_ATTR_WIPHY_ANTENNA_GAIN] = { .type = NLA_U32 },
 };
 
 /* policy for the key attributes */
@@ -1604,6 +1605,22 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 			goto bad_res;
 	}
 
+	if (info->attrs[NL80211_ATTR_WIPHY_ANTENNA_GAIN]) {
+		int idx, dbi = 0;
+
+		if (!rdev->ops->set_antenna_gain) {
+			result = -EOPNOTSUPP;
+			goto bad_res;
+		}
+
+		idx = NL80211_ATTR_WIPHY_ANTENNA_GAIN;
+		dbi = nla_get_u32(info->attrs[idx]);
+
+		result = rdev->ops->set_antenna_gain(&rdev->wiphy, dbi);
+		if (result)
+			goto bad_res;
+	}
+
 	if (info->attrs[NL80211_ATTR_WIPHY_ANTENNA_TX] &&
 	    info->attrs[NL80211_ATTR_WIPHY_ANTENNA_RX]) {
 		u32 tx_ant, rx_ant;
@@ -2769,6 +2786,32 @@ nla_put_failure:
 	return false;
 }
 
+static bool nl80211_put_signal(struct sk_buff *msg, u8 mask, s8 *signal,
+			       int id)
+{
+	void *attr;
+	int i = 0;
+
+	if (!mask)
+		return true;
+
+	attr = nla_nest_start(msg, id);
+	if (!attr)
+		return false;
+
+	for (i = 0; i < 4; i++) {
+		if (!(mask & BIT(i)))
+			continue;
+
+		if (nla_put_u8(msg, i, signal[i]))
+			return false;
+	}
+
+	nla_nest_end(msg, attr);
+
+	return true;
+}
+
 static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 				int flags,
 				struct cfg80211_registered_device *rdev,
@@ -2829,6 +2872,18 @@ static int nl80211_send_station(struct sk_buff *msg, u32 pid, u32 seq,
 		break;
 	default:
 		break;
+	}
+	if (sinfo->filled & STATION_INFO_CHAIN_SIGNAL) {
+		if (!nl80211_put_signal(msg, sinfo->chains,
+					sinfo->chain_signal,
+					NL80211_STA_INFO_CHAIN_SIGNAL))
+			goto nla_put_failure;
+	}
+	if (sinfo->filled & STATION_INFO_CHAIN_SIGNAL_AVG) {
+		if (!nl80211_put_signal(msg, sinfo->chains,
+					sinfo->chain_signal_avg,
+					NL80211_STA_INFO_CHAIN_SIGNAL_AVG))
+			goto nla_put_failure;
 	}
 	if (sinfo->filled & STATION_INFO_TX_BITRATE) {
 		if (!nl80211_put_sta_rate(msg, &sinfo->txrate,

@@ -1943,6 +1943,11 @@ struct mac_iveiv_entry {
 #define BBP47_TSSI_ADC6			FIELD8(0x80)
 
 /*
+ * BBP 49
+ */
+#define BBP49_UPDATE_FLAG		FIELD8(0x01)
+
+/*
  * BBP 109
  */
 #define BBP109_TX0_POWER		FIELD8(0x0f)
@@ -2110,6 +2115,12 @@ struct mac_iveiv_entry {
 #define RFCSR31_RX_CALIB		FIELD8(0x7f)
 
 /*
+ * RFCSR 34:
+ */
+#define RFCSR34_TX0_EXT_PA		FIELD8(0x04)
+#define RFCSR34_TX1_EXT_PA		FIELD8(0x08)
+
+/*
  * RFCSR 38:
  */
 #define RFCSR38_RX_LO1_EN		FIELD8(0x20)
@@ -2120,6 +2131,18 @@ struct mac_iveiv_entry {
 #define RFCSR39_RX_LO2_EN		FIELD8(0x80)
 
 /*
+ * RFCSR 41:
+ */
+#define RFCSR41_BIT1			FIELD8(0x01)
+#define RFCSR41_BIT4			FIELD8(0x08)
+
+/*
+ * RFCSR 42:
+ */
+#define RFCSR42_BIT1			FIELD8(0x01)
+#define RFCSR42_BIT4			FIELD8(0x08)
+
+/*
  * RFCSR 49:
  */
 #define RFCSR49_TX			FIELD8(0x3f)
@@ -2128,6 +2151,8 @@ struct mac_iveiv_entry {
  * RFCSR 50:
  */
 #define RFCSR50_TX			FIELD8(0x3f)
+#define RFCSR50_TX0_EXT_PA		FIELD8(0x02)
+#define RFCSR50_TX1_EXT_PA		FIELD8(0x10)
 
 /*
  * RF registers
@@ -2215,6 +2240,8 @@ struct mac_iveiv_entry {
  * INTERNAL_TX_ALC: 0: disable, 1: enable
  * BT_COEXIST: 0: disable, 1: enable
  * DAC_TEST: 0: disable, 1: enable
+ * EXTERNAL_TX0_PA: 0: disable, 1: enable (only on RT3352)
+ * EXTERNAL_TX1_PA: 0: disable, 1: enable (only on RT3352)
  */
 #define	EEPROM_NIC_CONF1		0x001b
 #define EEPROM_NIC_CONF1_HW_RADIO		FIELD16(0x0001)
@@ -2232,6 +2259,8 @@ struct mac_iveiv_entry {
 #define EEPROM_NIC_CONF1_INTERNAL_TX_ALC		FIELD16(0x2000)
 #define EEPROM_NIC_CONF1_BT_COEXIST		FIELD16(0x4000)
 #define EEPROM_NIC_CONF1_DAC_TEST		FIELD16(0x8000)
+#define EEPROM_NIC_CONF1_EXTERNAL_TX0_PA_3352	FIELD16(0x4000)
+#define EEPROM_NIC_CONF1_EXTERNAL_TX1_PA_3352	FIELD16(0x8000)
 
 /*
  * EEPROM frequency

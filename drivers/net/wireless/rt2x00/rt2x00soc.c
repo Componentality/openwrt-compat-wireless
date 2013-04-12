@@ -94,6 +94,7 @@ int rt2x00soc_probe(struct platform_device *pdev, const struct rt2x00_ops *ops)
 	rt2x00dev->hw = hw;
 	rt2x00dev->irq = platform_get_irq(pdev, 0);
 	rt2x00dev->name = pdev->dev.driver->name;
+	set_bit(REQUIRE_EEPROM_FILE, &rt2x00dev->cap_flags);
 
 	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_SOC);
 

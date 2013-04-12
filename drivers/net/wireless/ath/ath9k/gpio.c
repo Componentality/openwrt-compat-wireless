@@ -14,6 +14,7 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/ath9k_platform.h>
 #include "ath9k.h"
 
 /********************************/
@@ -24,22 +25,109 @@
 static void ath_led_brightness(struct led_classdev *led_cdev,
 			       enum led_brightness brightness)
 {
-	struct ath_softc *sc = container_of(led_cdev, struct ath_softc, led_cdev);
-	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, (brightness == LED_OFF));
+	struct ath_led *led = container_of(led_cdev, struct ath_led, cdev);
+	struct ath_softc *sc = led->sc;
+
+	ath9k_ps_wakeup(sc);
+	ath9k_hw_set_gpio(sc->sc_ah, led->gpio->gpio,
+			  (brightness != LED_OFF) ^ led->gpio->active_low);
+	ath9k_ps_restore(sc);
+}
+
+static int ath_add_led(struct ath_softc *sc, struct ath_led *led)
+{
+	const struct gpio_led *gpio = led->gpio;
+	int ret;
+
+	led->cdev.name = gpio->name;
+	led->cdev.default_trigger = gpio->default_trigger;
+	led->cdev.brightness_set = ath_led_brightness;
+
+	ret = led_classdev_register(wiphy_dev(sc->hw->wiphy), &led->cdev);
+	if (ret < 0)
+		return ret;
+
+	led->sc = sc;
+	list_add(&led->list, &sc->leds);
+
+	/* Configure gpio for output */
+	ath9k_hw_cfg_output(sc->sc_ah, gpio->gpio,
+			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
+
+	/* LED off */
+	ath9k_hw_set_gpio(sc->sc_ah, gpio->gpio, gpio->active_low);
+
+	return 0;
+}
+
+int ath_create_gpio_led(struct ath_softc *sc, int gpio_num, const char *name,
+			const char *trigger, bool active_low)
+{
+	struct ath_led *led;
+	struct gpio_led *gpio;
+	char *_name;
+	int ret;
+
+	led = kzalloc(sizeof(*led) + sizeof(*gpio) + strlen(name) + 1,
+		      GFP_KERNEL);
+	if (!led)
+		return -ENOMEM;
+
+	led->gpio = gpio = (struct gpio_led *) (led + 1);
+	_name = (char *) (led->gpio + 1);
+
+	strcpy(_name, name);
+	gpio->name = _name;
+	gpio->gpio = gpio_num;
+	gpio->active_low = active_low;
+	gpio->default_trigger = trigger;
+
+	ret = ath_add_led(sc, led);
+	if (unlikely(ret < 0))
+		kfree(led);
+
+	return ret;
+}
+
+static int ath_create_platform_led(struct ath_softc *sc,
+				   const struct gpio_led *gpio)
+{
+	struct ath_led *led;
+	int ret;
+
+	led = kzalloc(sizeof(*led), GFP_KERNEL);
+	if (!led)
+		return -ENOMEM;
+
+	led->gpio = gpio;
+	ret = ath_add_led(sc, led);
+	if (ret < 0)
+		kfree(led);
+
+	return ret;
 }
 
 void ath_deinit_leds(struct ath_softc *sc)
 {
-	if (!sc->led_registered)
-		return;
+	struct ath_led *led;
 
-	ath_led_brightness(&sc->led_cdev, LED_OFF);
-	led_classdev_unregister(&sc->led_cdev);
+	while (!list_empty(&sc->leds)) {
+		led = list_first_entry(&sc->leds, struct ath_led, list);
+		list_del(&led->list);
+		ath_led_brightness(&led->cdev, LED_OFF);
+		led_classdev_unregister(&led->cdev);
+		kfree(led);
+	}
 }
 
 void ath_init_leds(struct ath_softc *sc)
 {
-	int ret;
+	struct ath9k_platform_data *pdata = sc->dev->platform_data;
+	char led_name[32];
+	const char *trigger;
+	int i;
+
+	INIT_LIST_HEAD(&sc->leds);
 
 	if (AR_SREV_9100(sc->sc_ah))
 		return;
@@ -57,26 +145,21 @@ void ath_init_leds(struct ath_softc *sc)
 			sc->sc_ah->led_pin = ATH_LED_PIN_DEF;
 	}
 
-	/* Configure gpio 1 for output */
-	ath9k_hw_cfg_output(sc->sc_ah, sc->sc_ah->led_pin,
-			    AR_GPIO_OUTPUT_MUX_AS_OUTPUT);
-	/* LED off, active low */
-	ath9k_hw_set_gpio(sc->sc_ah, sc->sc_ah->led_pin, 1);
+	snprintf(led_name, sizeof(led_name), "ath9k-%s",
+		 wiphy_name(sc->hw->wiphy));
 
-	if (!led_blink)
-		sc->led_cdev.default_trigger =
-			ieee80211_get_radio_led_name(sc->hw);
+	if (led_blink)
+		trigger = sc->led_default_trigger;
+	else
+		trigger = ieee80211_get_radio_led_name(sc->hw);
 
-	snprintf(sc->led_name, sizeof(sc->led_name),
-		"ath9k-%s", wiphy_name(sc->hw->wiphy));
-	sc->led_cdev.name = sc->led_name;
-	sc->led_cdev.brightness_set = ath_led_brightness;
+	ath_create_gpio_led(sc, sc->sc_ah->led_pin, led_name, trigger, 1);
 
-	ret = led_classdev_register(wiphy_dev(sc->hw->wiphy), &sc->led_cdev);
-	if (ret < 0)
+	if (!pdata)
 		return;
 
-	sc->led_registered = true;
+	for (i = 0; i < pdata->num_leds; i++)
+		ath_create_platform_led(sc, &pdata->leds[i]);
 }
 #endif
 

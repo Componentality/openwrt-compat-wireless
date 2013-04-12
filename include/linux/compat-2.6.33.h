@@ -7,7 +7,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/pci.h>
-#if defined(CONFIG_PCCARD) || defined(CONFIG_PCCARD_MODULE)
+#if 0
 #include <pcmcia/cs_types.h>
 #include <pcmcia/cistpl.h>
 #include <pcmcia/ds.h>
@@ -82,9 +82,9 @@ static inline struct sk_buff *netdev_alloc_skb_ip_align(struct net_device *dev,
 	return skb;
 }
 
-#if defined(CONFIG_PCCARD) || defined(CONFIG_PCCARD_MODULE)
+#if 0
 
-#if defined(CONFIG_PCMCIA) || defined(CONFIG_PCMCIA_MODULE)
+#if 0
 
 #define pcmcia_request_window(a, b, c) pcmcia_request_window(&a, b, c)
 

@@ -367,6 +367,7 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct timespec uptime;
+	int i;
 
 	sinfo->generation = sdata->local->sta_generation;
 
@@ -405,6 +406,17 @@ static void sta_set_sinfo(struct sta_info *sta, struct station_info *sinfo)
 		    drv_get_rssi(local, sdata, &sta->sta, &sinfo->signal))
 			sinfo->signal = (s8)sta->last_signal;
 		sinfo->signal_avg = (s8) -ewma_read(&sta->avg_signal);
+	}
+	if (sta->chains) {
+		sinfo->filled |= STATION_INFO_CHAIN_SIGNAL |
+				 STATION_INFO_CHAIN_SIGNAL_AVG;
+
+		sinfo->chains = sta->chains;
+		for (i = 0; i < ARRAY_SIZE(sinfo->chain_signal); i++) {
+			sinfo->chain_signal[i] = sta->chain_signal_last[i];
+			sinfo->chain_signal_avg[i] =
+				(s8) -ewma_read(&sta->chain_signal_avg[i]);
+		}
 	}
 
 	sta_set_rate_info_tx(sta, &sta->last_tx_rate, &sinfo->txrate);
@@ -1796,8 +1808,6 @@ static int ieee80211_scan(struct wiphy *wiphy,
 		 * beaconing hasn't been configured yet
 		 */
 	case NL80211_IFTYPE_AP:
-		if (sdata->u.ap.beacon)
-			return -EOPNOTSUPP;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1969,7 +1979,20 @@ static int ieee80211_get_tx_power(struct wiphy *wiphy, int *dbm)
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 
-	*dbm = local->hw.conf.power_level;
+	*dbm = local->hw.cur_power_level;
+
+	return 0;
+}
+
+static int ieee80211_set_antenna_gain(struct wiphy *wiphy, int dbi)
+{
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+
+	if (dbi < 0)
+		return -EINVAL;
+
+	local->user_antenna_gain = dbi;
+	ieee80211_hw_config(local, 0);
 
 	return 0;
 }
@@ -2137,9 +2160,20 @@ static int ieee80211_set_bitrate_mask(struct wiphy *wiphy,
 	}
 
 	for (i = 0; i < IEEE80211_NUM_BANDS; i++) {
+		struct ieee80211_supported_band *sband = wiphy->bands[i];
+
 		sdata->rc_rateidx_mask[i] = mask->control[i].legacy;
 		memcpy(sdata->rc_rateidx_mcs_mask[i], mask->control[i].mcs,
 		       sizeof(mask->control[i].mcs));
+
+		sdata->rc_has_mcs_mask[i] = false;
+		if (!sband)
+			continue;
+
+		if (memcmp(sdata->rc_rateidx_mcs_mask[i],
+			   sband->ht_cap.mcs.rx_mask,
+			   sizeof(sband->ht_cap.mcs.rx_mask)) != 0)
+			sdata->rc_has_mcs_mask[i] = true;
 	}
 
 	return 0;
@@ -2562,6 +2596,9 @@ static void ieee80211_mgmt_frame_register(struct wiphy *wiphy,
 			local->probe_req_reg++;
 		else
 			local->probe_req_reg--;
+
+		if (!local->open_count)
+			break;
 
 		ieee80211_queue_work(&local->hw, &local->reconfig_filter);
 		break;
@@ -3072,6 +3109,7 @@ struct cfg80211_ops mac80211_config_ops = {
 	.set_wiphy_params = ieee80211_set_wiphy_params,
 	.set_tx_power = ieee80211_set_tx_power,
 	.get_tx_power = ieee80211_get_tx_power,
+	.set_antenna_gain = ieee80211_set_antenna_gain,
 	.set_wds_peer = ieee80211_set_wds_peer,
 	.rfkill_poll = ieee80211_rfkill_poll,
 	CFG80211_TESTMODE_CMD(ieee80211_testmode_cmd)

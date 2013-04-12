@@ -236,7 +236,6 @@ enum ath9k_hw_caps {
 	ATH9K_HW_CAP_LDPC			= BIT(6),
 	ATH9K_HW_CAP_FASTCLOCK			= BIT(7),
 	ATH9K_HW_CAP_SGI_20			= BIT(8),
-	ATH9K_HW_CAP_PAPRD			= BIT(9),
 	ATH9K_HW_CAP_ANT_DIV_COMB		= BIT(10),
 	ATH9K_HW_CAP_2GHZ			= BIT(11),
 	ATH9K_HW_CAP_5GHZ			= BIT(12),
@@ -287,12 +286,12 @@ struct ath9k_ops_config {
 	u8 pcie_clock_req;
 	u32 pcie_waen;
 	u8 analog_shiftreg;
-	u8 paprd_disable;
 	u32 ofdm_trig_low;
 	u32 ofdm_trig_high;
 	u32 cck_trig_high;
 	u32 cck_trig_low;
 	u32 enable_ani;
+	u32 enable_paprd;
 	int serialize_regmode;
 	bool rx_intr_mitigation;
 	bool tx_intr_mitigation;
@@ -496,6 +495,12 @@ enum {
 	ATH9K_RESET_POWER_ON,
 	ATH9K_RESET_WARM,
 	ATH9K_RESET_COLD,
+};
+
+enum {
+	ATH_DIAG_DISABLE_RX,
+	ATH_DIAG_DISABLE_TX,
+	ATH_DIAG_TRIGGER_ERROR,
 };
 
 struct ath9k_hw_version {
@@ -705,6 +710,7 @@ enum ath_cal_list {
 #define AH_USE_EEPROM   0x1
 #define AH_UNPLUGGED    0x2 /* The card has been physically removed. */
 #define AH_FASTCC       0x4
+#define AH_NO_EEP_SWAP  0x8 /* Do not swap EEPROM data */
 
 struct ath_hw {
 	struct ath_ops reg_ops;
@@ -739,6 +745,8 @@ struct ath_hw {
 	u32 rfkill_gpio;
 	u32 rfkill_polarity;
 	u32 ah_flags;
+
+	unsigned long diag;
 
 	bool htc_reset_init;
 
@@ -919,6 +927,8 @@ struct ath_hw {
 	bool is_clk_25mhz;
 	int (*get_mac_revision)(void);
 	int (*external_reset)(void);
+	bool disable_2ghz;
+	bool disable_5ghz;
 };
 
 struct ath_bus_ops {
@@ -1006,6 +1016,7 @@ void ath9k_hw_set_sta_beacon_timers(struct ath_hw *ah,
 bool ath9k_hw_check_alive(struct ath_hw *ah);
 
 bool ath9k_hw_setpower(struct ath_hw *ah, enum ath9k_power_mode mode);
+void ath9k_hw_update_diag(struct ath_hw *ah);
 
 #ifdef CONFIG_ATH9K_DEBUGFS
 void ath9k_debug_sync_cause(struct ath_common *common, u32 sync_cause);

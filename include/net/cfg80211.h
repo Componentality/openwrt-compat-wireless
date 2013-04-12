@@ -549,6 +549,8 @@ struct station_parameters {
  * @STATION_INFO_STA_FLAGS: @sta_flags filled
  * @STATION_INFO_BEACON_LOSS_COUNT: @beacon_loss_count filled
  * @STATION_INFO_T_OFFSET: @t_offset filled
+ * @STATION_INFO_CHAIN_SIGNAL: @chain_signal filled
+ * @STATION_INFO_CHAIN_SIGNAL_AVG: @chain_signal_avg filled
  */
 enum station_info_flags {
 	STATION_INFO_INACTIVE_TIME	= 1<<0,
@@ -572,6 +574,8 @@ enum station_info_flags {
 	STATION_INFO_STA_FLAGS		= 1<<18,
 	STATION_INFO_BEACON_LOSS_COUNT	= 1<<19,
 	STATION_INFO_T_OFFSET		= 1<<20,
+	STATION_INFO_CHAIN_SIGNAL	= 1<<21,
+	STATION_INFO_CHAIN_SIGNAL_AVG	= 1<<22,
 };
 
 /**
@@ -655,6 +659,9 @@ struct sta_bss_parameters {
  *	For CFG80211_SIGNAL_TYPE_MBM, value is expressed in _dBm_.
  * @signal_avg: Average signal strength, type depends on the wiphy's signal_type.
  *	For CFG80211_SIGNAL_TYPE_MBM, value is expressed in _dBm_.
+ * @chains: bitmask for filled values in @chain_signal, @chain_signal_avg
+ * @chain_signal: per-chain signal strength of last received packet in dBm
+ * @chain_signal_avg: per-chain signal strength average in dBm
  * @txrate: current unicast bitrate from this station
  * @rxrate: current unicast bitrate to this station
  * @rx_packets: packets received from this station
@@ -687,6 +694,11 @@ struct station_info {
 	u8 plink_state;
 	s8 signal;
 	s8 signal_avg;
+
+	u8 chains;
+	s8 chain_signal[4];
+	s8 chain_signal_avg[4];
+
 	struct rate_info txrate;
 	struct rate_info rxrate;
 	u32 rx_packets;
@@ -1218,6 +1230,7 @@ struct cfg80211_deauth_request {
 	const u8 *ie;
 	size_t ie_len;
 	u16 reason_code;
+	bool local_state_change;
 };
 
 /**
@@ -1539,6 +1552,7 @@ struct cfg80211_gtk_rekey_data {
  *	the power passed is in mBm, to get dBm use MBM_TO_DBM().
  * @get_tx_power: store the current TX power into the dbm variable;
  *	return 0 if successful
+ * @set_antenna_gain: set antenna gain to reduce maximum tx power if necessary
  *
  * @set_wds_peer: set the WDS peer for a WDS interface
  *
@@ -1738,6 +1752,7 @@ struct cfg80211_ops {
 	int	(*set_tx_power)(struct wiphy *wiphy,
 				enum nl80211_tx_power_setting type, int mbm);
 	int	(*get_tx_power)(struct wiphy *wiphy, int *dbm);
+	int	(*set_antenna_gain)(struct wiphy *wiphy, int dbi);
 
 	int	(*set_wds_peer)(struct wiphy *wiphy, struct net_device *dev,
 				const u8 *addr);

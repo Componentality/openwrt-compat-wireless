@@ -1156,6 +1156,7 @@ ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	tsf_lo = 0;
 	mode = 0;
 
+#if 0
 	/*
 	 * Sanity check for fast flag
 	 * Fast channel change only available
@@ -1163,6 +1164,7 @@ ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 	 */
 	if (fast && (ah->ah_radio != AR5K_RF2413) &&
 	(ah->ah_radio != AR5K_RF5413))
+#endif
 		fast = false;
 
 	/* Disable sleep clock operation
