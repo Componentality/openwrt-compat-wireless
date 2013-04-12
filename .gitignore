@@ -1,0 +1,12 @@
+*~
+git-describe
+compat-release
+Module.symvers
+module.order
+.pc
+.compat_autoconf_compat-*
+.config
+.config.mk_md5sum.txt
+.tmp_versions/
+modules
+modules.order

@@ -1,0 +1,16 @@
+
+[36mcompat-drivers code metrics[00m
+
+[35m    849415[00m - Total upstream lines of code being pulled
+[01;32m      3033[00m - backport code changes
+[01;32m      2539[00m - backport code additions
+[01;32m       494[00m - backport code deletions
+[01;32m      5176[00m - backport from compat module
+[01;32m      8209[00m - total backport code
+[31m    0.9664[00m - % of code consists of backport work
+
+Base tree: [01;32mwireless-testing.git[00m
+Base tree version: [35mmaster-2012-09-07[00m
+compat.git: [36mcompat-2012-09-04-3-gfab5e3a[00m
+compat-drivers release: [01;33mcompat-drivers-2012-09-04-2-gddac993[00m
+Code metrics archive: [01;32mhttp://bit.ly/H6BTF7[00m
